@@ -205,8 +205,16 @@ public abstract class StartDebugMojoSupport extends ServerFeatureSupport {
      * @throws MojoExecutionException
      */
     protected void runExplodedMojo() throws MojoExecutionException {
-        Plugin warPlugin = getPlugin("org.apache.maven.plugins", "maven-war-plugin");
-        Xpp3Dom explodedConfig = ExecuteMojoUtil.getPluginGoalConfig(warPlugin, "exploded", getLog());
+        
+    	Plugin warPlugin= null;
+    	if(project.getPackaging().equals("war")) {
+         
+    		 warPlugin = getPlugin("org.apache.maven.plugins", "maven-war-plugin");
+    	}else {
+    		 // If lutece project
+    	     warPlugin = getPlugin("fr.paris.lutece.tools", "lutece-maven-plugin");
+    	}
+    	Xpp3Dom explodedConfig = ExecuteMojoUtil.getPluginGoalConfig(warPlugin, "exploded", getLog());
         
         if (explodedConfig.getChild("outdatedCheckPath") == null) {
             if (validatePluginVersion(warPlugin.getVersion(), "3.3.2")) {
@@ -216,7 +224,7 @@ public abstract class StartDebugMojoSupport extends ServerFeatureSupport {
             }
         }
 
-        getLog().info("Running maven-war-plugin:exploded");
+        getLog().info("Running lutece-maven-plugin:exploded");
         getLog().debug("configuration:\n" + explodedConfig);
         session.getRequest().setStartTime(new Date());
         executeMojo(warPlugin, goal("exploded"), explodedConfig, executionEnvironment(project, session, pluginManager));

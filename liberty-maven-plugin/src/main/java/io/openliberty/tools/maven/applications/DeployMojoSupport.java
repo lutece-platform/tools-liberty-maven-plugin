@@ -560,6 +560,8 @@ public abstract class DeployMojoSupport extends LooseAppSupport {
             case "rar":
             case "eba":
             case "esa":
+            case "lutece-core":
+            case "lutece-plugin":
             case "liberty-assembly":
                 supported = true;
                 break;
@@ -574,6 +576,8 @@ public abstract class DeployMojoSupport extends LooseAppSupport {
         switch (type) {
             case "ear":
             case "war":
+            case "lutece-core":
+            case "lutece-plugin":
             case "liberty-assembly":
             case "pom":
                 supported = true;

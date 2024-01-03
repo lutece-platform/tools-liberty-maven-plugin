@@ -57,9 +57,12 @@ public abstract class LooseAppSupport extends PluginConfigSupport {
         }
 
         String packagingType = project.getPackaging();
-        if (packagingType.equals("liberty-assembly")) {
+        if (packagingType.equals("liberty-assembly") 
+        		|| packagingType.equals("lutece-core")
+        		|| packagingType.equals("lutece-plugin")) {
             name += ".war";
-        } else if (packagingType.equals("ejb") || packagingType.equals("bundle")) {
+        }
+        else if (packagingType.equals("ejb") || packagingType.equals("bundle")) {
             name += ".jar";
         } else {
             name += "." + packagingType;

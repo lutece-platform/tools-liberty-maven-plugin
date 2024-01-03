@@ -71,7 +71,10 @@ public class MavenProjectUtil {
             pluginName = "maven-ear-plugin";
         } else if (proj.getPackaging().equals("bundle")) {
             pluginName = "maven-bundle-plugin";
-        } else {
+        } else if (proj.getPackaging().equals("lutece-plugin") || proj.getPackaging().equals("lutece-core")) {
+            pluginName = "lutece-maven-plugin";
+        } 
+        else {
             return null;
         }
 

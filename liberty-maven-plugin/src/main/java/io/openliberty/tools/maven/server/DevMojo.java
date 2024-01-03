@@ -823,7 +823,10 @@ public class DevMojo extends LooseAppSupport {
         @Override
         protected void updateLooseApp() throws PluginExecutionException {
             // Only perform operations if we are a war type application
-            if (project.getPackaging().equals("war")) {
+            if (project.getPackaging().equals("war") 
+            		|| project.getPackaging().equals("lutece-core")
+            		|| project.getPackaging().equals("lutece-plugin")
+            		) {
                 // Check if we are using an exploded loose app
                 if (LooseWarApplication.isExploded(project)) {
                     if (!isExplodedLooseWarApp) {
@@ -860,7 +863,11 @@ public class DevMojo extends LooseAppSupport {
 
         @Override
         protected void resourceDirectoryCreated() throws IOException {
-            if (project.getPackaging().equals("war") && LooseWarApplication.isExploded(project)) {
+            if ((project.getPackaging().equals("war") 
+            		|| project.getPackaging().equals("lutece-core")
+            		|| project.getPackaging().equals("lutece-plugin")
+            		)
+            		&& LooseWarApplication.isExploded(project)) {
                 try {
                     runMojo("org.apache.maven.plugins", "maven-resources-plugin", "resources");
                     runExplodedMojo();
@@ -897,7 +904,10 @@ public class DevMojo extends LooseAppSupport {
              */
 
             deleteFile(fileChanged, resourceParent, outputDirectory, null);
-            if (project.getPackaging().equals("war") && LooseWarApplication.isExploded(project)) {
+            if ((project.getPackaging().equals("war") 
+            		|| project.getPackaging().equals("lutece-core")
+            		|| project.getPackaging().equals("lutece-plugin"))
+            		&& LooseWarApplication.isExploded(project)) {
                 try {
                     runExplodedMojo();
                 } catch (MojoExecutionException e) {
@@ -1430,7 +1440,10 @@ public class DevMojo extends LooseAppSupport {
             runLibertyMojoDeploy();
         }
         
-        if (project.getPackaging().equals("war")) {
+        if (project.getPackaging().equals("war") 
+        		|| project.getPackaging().equals("lutece-core")
+        		|| project.getPackaging().equals("lutece-plugin")
+        		) {
             // Check if we are using the exploded loose app functionality and save for checking later on. 
             isExplodedLooseWarApp = LooseWarApplication.isExploded(project);
         

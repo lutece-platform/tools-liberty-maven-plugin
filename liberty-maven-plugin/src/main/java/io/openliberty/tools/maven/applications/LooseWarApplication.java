@@ -77,8 +77,15 @@ public class LooseWarApplication extends LooseApplication {
     }
 
     private Path getWebAppDirectory(MavenProject project) {
-        Xpp3Dom dom = project.getGoalConfiguration("org.apache.maven.plugins", "maven-war-plugin", null, null);
-        String webAppDirStr = null;
+    	Xpp3Dom dom= null;
+    	if(project.getPackaging().equals("war")) {
+    	dom = project.getGoalConfiguration("org.apache.maven.plugins", "maven-war-plugin", null, null);
+    	}
+    	else {
+    	 // If lutece project
+    	 dom = project.getGoalConfiguration("fr.paris.lutece.tools", "lutece-maven-plugin", null, null);
+    	}
+    	String webAppDirStr = null;
         if (dom != null) {
             Xpp3Dom webAppDirConfig = dom.getChild("webappDirectory");
             if (webAppDirConfig != null) {
@@ -112,7 +119,6 @@ public class LooseWarApplication extends LooseApplication {
         if (!filteredWebResources.contains(warSourceDir) && isFilteringDeploymentDescriptors(project)) {
             retVal.add(warSourceDir);
         }
-
         return retVal;
     }
 

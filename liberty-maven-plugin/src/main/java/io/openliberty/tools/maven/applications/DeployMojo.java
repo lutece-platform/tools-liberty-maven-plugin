@@ -220,22 +220,24 @@ public class DeployMojo extends DeployMojoSupport {
         LooseConfigData config = createLooseConfigData();
 
         switch (proj.getPackaging()) {
-            case "war":
-                validateAppConfig(applicationFullPath.getCanonicalPath(), application, proj.getArtifactId());
-                getLog().info(MessageFormat.format(messages.getString("info.install.app"), looseConfigFileName));
-                installLooseConfigWar(proj, config, false);
-                installAndVerifyApp(config, looseConfigFile, application);
-                if (proj.getProperties().containsKey("container")) {
-                    // install another copy that is container specific
-                    config = createLooseConfigData();
-                    installLooseConfigWar(proj, config, true);
-                    try {
-                        config.toXmlFile(devcLooseConfigFile);
-                    } catch (Exception e) {
-                        throw new MojoExecutionException("Error writing loose application configuration file: "+devcLooseConfigFile.getCanonicalPath(), e);
-                    }
-                }
-                break;
+        	case "war":
+        	case "lutece-plugin":
+        	case "lutece-core":
+        		 validateAppConfig(applicationFullPath.getCanonicalPath(), application, proj.getArtifactId());
+                 getLog().info(MessageFormat.format(messages.getString("info.install.app"), looseConfigFileName));
+                 installLooseConfigWar(proj, config, false);
+                 installAndVerifyApp(config, looseConfigFile, application);
+                 if (proj.getProperties().containsKey("container")) {
+                     // install another copy that is container specific
+                     config = createLooseConfigData();
+                     installLooseConfigWar(proj, config, true);
+                     try {
+                         config.toXmlFile(devcLooseConfigFile);
+                     } catch (Exception e) {
+                         throw new MojoExecutionException("Error writing loose application configuration file: "+devcLooseConfigFile.getCanonicalPath(), e);
+                     }
+                 }
+                 break;
             case "ear":
                 validateAppConfig(applicationFullPath.getCanonicalPath(), application, proj.getArtifactId());
                 getLog().info(MessageFormat.format(messages.getString("info.install.app"), looseConfigFileName));
