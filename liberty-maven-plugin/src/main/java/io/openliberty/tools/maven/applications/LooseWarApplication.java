@@ -230,7 +230,13 @@ public class LooseWarApplication extends LooseApplication {
      */
     public static List<Xpp3Dom> getWebResourcesConfigurations(MavenProject project) {
         List<Xpp3Dom> retVal = new ArrayList<Xpp3Dom>();
-        Xpp3Dom dom = project.getGoalConfiguration("org.apache.maven.plugins", "maven-war-plugin", null, null);
+        Xpp3Dom dom = null;
+        if(project.getPackaging().equals("lutece-core") || project.getPackaging().equals("lutece-plugin")) {
+        	//If lutece project
+        	dom = project.getGoalConfiguration("fr.paris.lutece.tools", "lutece-maven-plugin", null, null);
+        }else {
+        	dom = project.getGoalConfiguration("org.apache.maven.plugins", "maven-war-plugin", null, null);
+        }
         if (dom != null) {
             Xpp3Dom web = dom.getChild("webResources");
             if (web != null) {
