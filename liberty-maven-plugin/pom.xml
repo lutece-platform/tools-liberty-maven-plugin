@@ -32,7 +32,16 @@
             </releases>
         </repository>
     </repositories>
-
+    
+    <distributionManagement>
+        
+        <snapshotRepository>
+            <uniqueVersion>true</uniqueVersion>
+            <id>luteceNextDevsSnapshot</id>
+            <url>https://piclutece-p30.apps.paris.mdp/nexuspr/content/repositories/lutece_nextdevs_snapshots_repository</url>
+        </snapshotRepository>
+    </distributionManagement>
+   
     <dependencies>
         <dependency>
             <groupId>io.openliberty.tools</groupId>
