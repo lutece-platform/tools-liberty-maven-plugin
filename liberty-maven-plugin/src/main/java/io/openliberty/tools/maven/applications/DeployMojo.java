@@ -178,6 +178,10 @@ public class DeployMojo extends DeployMojoSupport {
             if (assemblyArtifact != null && matches(artifact, assemblyArtifact)) {
                 continue;
             }
+            // skip lutece plugins artifact
+            if ("lutece-plugin".equals(artifact.getType( )) || "lutece-core".equals(artifact.getType( ))) {
+                continue;
+            }
             if (artifact.getScope().equals("compile")) {
                 if (isSupportedType(artifact.getType())) {
                     if (looseApplication && isReactorMavenProject(artifact)) {  //Installing the reactor project artifacts
