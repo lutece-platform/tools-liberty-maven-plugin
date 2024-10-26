@@ -23,7 +23,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.maven.model.Dependency;
 import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
@@ -33,51 +32,87 @@ import io.openliberty.tools.maven.utils.MavenProjectUtil;
 import io.openliberty.tools.common.plugins.config.LooseApplication;
 import io.openliberty.tools.common.plugins.config.LooseConfigData;
 
-public class LooseWarApplication extends LooseApplication {
-    
-    protected final MavenProject project;
-
-    protected final Path warSourceDirectory;
-    
-    protected final Log log;
-
-    public LooseWarApplication(MavenProject project, LooseConfigData config, Log log) {
-        super(project.getBuild().getDirectory(), config);
-        this.project = project;
-        this.warSourceDirectory = getWarSourceDirectory(project);
-        this.log = log;
-    }
-    
+/**
+ * Represents a loosely configured Lutece application, extending LooseApplication functionality 
+ * for handling project-specific configurations in Lutece.
+ */
+public class LooseLuteceApplication extends LooseApplication {
+    /** The Maven project instance associated with this application. */
+	protected final MavenProject project;
+    /** The source directory for the WAR file within the Lutece application. */
+	protected final Path warSourceDirectory;
+    /** The logger instance for this application. */
+	protected final Log log;
+ 
+	/**
+     * Initializes a new LooseLuteceApplication with the specified project, configuration, and log.
+     *
+     * @param project the Maven project
+     * @param config  the configuration data for this application
+     * @param log     the logger instance
+     */
+	public LooseLuteceApplication(MavenProject project, LooseConfigData config, Log log) {
+	    super(project.getBuild().getDirectory(), config);
+	    this.project = project;
+	    this.warSourceDirectory = getLuteceSourceDirectory(project);
+	    this.log = log;
+	}
+	/**
+     * Determines if the project is set up in an exploded format by checking for monitored directories.
+     *
+     * @param project the Maven project
+     * @return true if the project is in exploded format, false otherwise
+     */
     public static boolean isExploded(MavenProject project) {
-        if (isUsingOverlays(project)) {
-            return true;
-        } else if (!getWebSourceDirectoriesToMonitor(project).isEmpty()) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-    
+    	  if (!getWebSourceDirectoriesToMonitor(project).isEmpty()) {
+             return true;
+         } else {
+             return false;
+         }
+    }  
+    /**
+     * Checks if the current project instance is in exploded format.
+     *
+     * @return true if the project is in exploded format, false otherwise
+     */
     public boolean isExploded() {
     	return isExploded(project);
     }
-    
+    /**
+     * Adds the main source directory to the configuration.
+     *
+     * @throws IOException if there is an error adding the directory
+     */
     public void addSourceDir() throws IOException {
         config.addDir(warSourceDirectory.toFile(), "/");
     }
-
-    private static Path getWarSourceDirectory(MavenProject project) {
+    /**
+     * Retrieves the source directory path for the Lutece application.
+     *
+     * @param project the Maven project
+     * @return the source directory path for the WAR file
+     */
+    private static Path getLuteceSourceDirectory(MavenProject project) {
         Path baseDir = Paths.get(project.getBasedir().getAbsolutePath());
-        String warSourceDir = MavenProjectUtil.getPluginConfiguration(project, "org.apache.maven.plugins", "maven-war-plugin", "warSourceDirectory");
+        String warSourceDir = MavenProjectUtil.getPluginConfiguration(project, "org.apache.maven.plugins", "maven-lutece-plugin", "warSourceDirectory");
         if (warSourceDir == null) {
-            warSourceDir = "src/main/webapp";
+            warSourceDir = "webapp";
         }  
         // Use java.nio Paths to fix issue with absolute paths on Windows
         return baseDir.resolve(warSourceDir);
     }
-
+    
+    /**
+     * Gets the web application directory based on project packaging configurations.
+     *
+     * @param project the Maven project
+     * @return the path to the web application directory
+     */
     private Path getWebAppDirectory(MavenProject project) {
-    	Xpp3Dom dom = project.getGoalConfiguration("org.apache.maven.plugins", "maven-war-plugin", null, null);
+    	Xpp3Dom dom= null;
+    	if(isLuteceApplication(project.getPackaging())) {
+    		dom = project.getGoalConfiguration("fr.paris.lutece.tools", "lutece-maven-plugin", null, null);
+    	}
     	String webAppDirStr = null;
         if (dom != null) {
             Xpp3Dom webAppDirConfig = dom.getChild("webappDirectory");
@@ -95,10 +130,10 @@ public class LooseWarApplication extends LooseApplication {
     }
 
     /**
-     * @param project
-     * 
-     * @return A list of directory Path(s) including each web source directory that has filtering applied, including the war source
-     *         directory (if so configured) or webResources entries
+     * Retrieves a list of paths to web source directories that have filtering enabled.
+     *
+     * @param project the Maven project
+     * @return a list of filtered web resource paths
      */
     public static List<Path> getWebSourceDirectoriesToMonitor(MavenProject project) {
 
@@ -106,7 +141,7 @@ public class LooseWarApplication extends LooseApplication {
 
         List<Path> retVal = new ArrayList<Path>(filteredWebResources);
 
-        Path warSourceDir = getWarSourceDirectory(project);
+        Path warSourceDir = getLuteceSourceDirectory(project);
 
         // Need to add warSourceDir if DD filtering enabled, unless it's already in the list having its own webResources config
         if (!filteredWebResources.contains(warSourceDir) && isFilteringDeploymentDescriptors(project)) {
@@ -116,10 +151,10 @@ public class LooseWarApplication extends LooseApplication {
     }
 
     /**
-     * @param project
-     * 
-     * @return List of webResources/resource configurations with filtering enabled, whether they happen to be the war source directory
-     *         or not
+     * Retrieves configurations for web resources with filtering enabled.
+     *
+     * @param project the Maven project
+     * @return a set of paths to filtered web resources
      */
     private static Set<Path> getFilteredWebResourcesConfigurations(MavenProject project) {
         Set<Path> retVal = new HashSet<Path>();
@@ -138,12 +173,16 @@ public class LooseWarApplication extends LooseApplication {
 
         return retVal;
     }
-
-
-
+    
+    /**
+     * Checks if deployment descriptors are filtered.
+     *
+     * @param project the Maven project
+     * @return true if deployment descriptors are filtered, false otherwise
+     */
     private static boolean isFilteringDeploymentDescriptors(MavenProject project) {
         Boolean retVal = false;
-        Xpp3Dom dom = project.getGoalConfiguration("org.apache.maven.plugins", "maven-war-plugin", null, null);
+        Xpp3Dom dom = project.getGoalConfiguration("org.apache.maven.plugins", "lutece-maven-plugin", null, null);
         if (dom != null) {
             Xpp3Dom fdd = dom.getChild("filteringDeploymentDescriptors");
             if (fdd != null) {
@@ -152,70 +191,15 @@ public class LooseWarApplication extends LooseApplication {
         }
         return retVal;
     }
-
+    /**
+     * Checks if deployment descriptors are filtered.
+     *
+     * @return true if deployment descriptors are filtered, false otherwise
+     */
     public boolean isFilteringDeploymentDescriptors() {
         return isFilteringDeploymentDescriptors(project);
     }
     
-    public static boolean isUsingOverlays(MavenProject project) {
-    	boolean overlaysEnabled = false;
-    	
-    	// Get overlay dependencies
-    	List<Dependency> overlayDependencies = getWarDependencies(project);
-    	
-    	// Get overlays configured in the Maven WAR plugin
-    	List<Xpp3Dom> overlayConfigurations = getOverlayConfigurations(project);
-    	
-    	if (!overlayDependencies.isEmpty() || !overlayConfigurations.isEmpty()) {
-    		overlaysEnabled = true;
-    	}
-    	
-    	return overlaysEnabled;
-    }
-    
-    /**
-     * Get overlay configuration values from the Maven WAR plugin
-     * @param proj the Maven project
-     * @return ALLOWS DUPS
-     * @return a List of war plugin overlay elements
-     */
-    private static List<Xpp3Dom> getOverlayConfigurations(MavenProject project) {
-        List<Xpp3Dom> retVal = new ArrayList<Xpp3Dom>();
-        Xpp3Dom dom = project.getGoalConfiguration("org.apache.maven.plugins", "maven-war-plugin", null, null);
-        if (dom != null) {
-            Xpp3Dom overlays = dom.getChild("overlays");
-            if (overlays != null) {
-                Xpp3Dom overlayList[] = overlays.getChildren("overlay");
-                if (overlayList != null) {
-                    for (int i = 0; i < overlayList.length; i++) {
-                        retVal.add(overlayList[i]);
-                    }
-                }
-            }
-        }
-        return retVal;
-    }
-    
-    /**
-     * Get overlay dependencies
-     * @param proj the Maven project
-     * @return ALLOWS DUPS
-     * @return a List of war plugin overlay dependencies
-     */
-    private static List<Dependency> getWarDependencies(MavenProject project) {
-    	List<Dependency> overlayDependencies = new ArrayList<Dependency>();
-    	
-    	List<Dependency> deps = project.getDependencies();
-    	for (Dependency dep : deps) {
-    		if (dep.getType().equals("war")) {
-    			overlayDependencies.add(dep);
-    		}
-    	}
-    	
-    	return overlayDependencies;
-    }
-
-
     /**
      * Get resource configuration values that have "directory" children elements from the Maven WAR plugin
      * @param project the Maven project
@@ -223,7 +207,11 @@ public class LooseWarApplication extends LooseApplication {
      */
     public static List<Xpp3Dom> getWebResourcesConfigurations(MavenProject project) {
         List<Xpp3Dom> retVal = new ArrayList<Xpp3Dom>();
-        Xpp3Dom dom = project.getGoalConfiguration("org.apache.maven.plugins", "maven-war-plugin", null, null);
+        Xpp3Dom dom = null;
+        if(isLuteceApplication(project.getPackaging())) {
+        	//If lutece project
+        	dom = project.getGoalConfiguration("fr.paris.lutece.tools", "lutece-maven-plugin", null, null);
+        }
         if (dom != null) {
             Xpp3Dom web = dom.getChild("webResources");
             if (web != null) {
@@ -242,12 +230,11 @@ public class LooseWarApplication extends LooseApplication {
         return retVal;
     }
 
-    /*
-     * Add loose app XML elements for each directory within a maven-war-plugin configuration/webResources/resource/directory element 
-     * 
-     * @return
-     * @throws IOException 
-     * @throws DOMException 
+    /**
+     * Adds all web resources configuration paths to the loose application configuration.
+     *
+     * @throws DOMException if there is an error manipulating XML configuration
+     * @throws IOException  if there is an error accessing file paths
      */
     public void addAllWebResourcesConfigurationPaths() throws DOMException, IOException {
         Set<Path> handled = new HashSet<Path>();
@@ -271,13 +258,11 @@ public class LooseWarApplication extends LooseApplication {
         }
     }
 
-    /*
-     * Add loose app XML elements for the WAR source directory, as long as it is not filtered, and for each non-filtered 
-     * maven-war-plugin configuration/webResources/resource/directory element 
-     * 
-     * @return
-     * @throws IOException 
-     * @throws DOMException 
+    /**
+     * Adds non-filtered source and web resources paths to the loose application configuration.
+     *
+     * @throws DOMException if there is an error manipulating XML configuration
+     * @throws IOException  if there is an error accessing file paths
      */
     public void addNonFilteredSourceAndWebResourcesPaths() throws DOMException, IOException {
 
@@ -314,8 +299,57 @@ public class LooseWarApplication extends LooseApplication {
             }
         }
     }
-
+    
+    /**
+     * Retrieves the web application directory path.
+     *
+     * @return the path to the web application directory
+     */
     public Path getWebAppDirectory() {
     	return getWebAppDirectory(project);
+    }
+    
+    /**
+     * Checks if the specified packaging type represents a Lutece application.
+     *
+     * @param packaging the packaging type
+     * @return true if it is a Lutece application, false otherwise
+     */
+    public static boolean isLuteceApplication( String packaging) {
+    	return packaging.equals("lutece-core") || packaging.equals("lutece-plugin") || packaging.equals("lutece-site");
+    }
+    
+    /**
+     * Adds the default configuration directory paths to the loose application configuration.
+     *
+     * @throws DOMException if there is an error manipulating XML configuration
+     * @throws IOException  if there is an error accessing file paths
+     */
+    public void addDefaultConfigurationDirPaths() throws DOMException, IOException  {
+
+        Path baseDirPath = Paths.get(project.getBasedir().getAbsolutePath());
+        Xpp3Dom dom = project.getGoalConfiguration("fr.paris.lutece.tools", "lutece-maven-plugin", null, null);        
+    	if (dom != null) {
+    		Xpp3Dom localDir = dom.getChild("localConfDirectory");
+            if ( localDir != null ) {
+                    Path resolvedlocalDir = baseDirPath.resolve(localDir.getValue());
+                    if(!resolvedlocalDir.toFile().exists()) {
+                	    log.warn("Default local configuration directory " + localDir.getValue() + "does not exist");
+                    }
+                    else {
+                    	addOutputDir(getDocumentRoot(), resolvedlocalDir.toFile(), "/WEB-INF/conf");
+                }
+             }
+            Xpp3Dom defaultDir = dom.getChild("defaultConfDirectory");
+            if ( defaultDir != null ) {
+                Path resolvedDir = baseDirPath.resolve(defaultDir.getValue());
+                if(!resolvedDir.toFile().exists()) {
+            	    log.warn("Default configuration directory " + defaultDir.getValue() + "does not exist");
+                }
+                else {
+                	addOutputDir(getDocumentRoot(), resolvedDir.toFile(), "/WEB-INF/conf/");
+                }
+            }          
+        }
     }
 }

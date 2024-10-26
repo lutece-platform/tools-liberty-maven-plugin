@@ -25,6 +25,7 @@ import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 
 import io.openliberty.tools.common.plugins.util.PluginScenarioException;
+import io.openliberty.tools.maven.applications.LooseLuteceApplication;
 
 public class MavenProjectUtil {
     
@@ -71,7 +72,7 @@ public class MavenProjectUtil {
             pluginName = "maven-ear-plugin";
         } else if (proj.getPackaging().equals("bundle")) {
             pluginName = "maven-bundle-plugin";
-        } else if (proj.getPackaging().equals("lutece-plugin") || proj.getPackaging().equals("lutece-core")) {
+        } else if (LooseLuteceApplication.isLuteceApplication(proj.getPackaging( ))) {
             pluginName = "lutece-maven-plugin";
         } 
         else {

@@ -28,9 +28,13 @@ import static org.twdata.maven.mojoexecutor.MojoExecutor.version;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -69,6 +73,7 @@ import org.twdata.maven.mojoexecutor.MojoExecutor.Element;
 import io.openliberty.tools.ant.ServerTask;
 import io.openliberty.tools.common.plugins.config.ServerConfigXmlDocument;
 import io.openliberty.tools.maven.ServerFeatureSupport;
+import io.openliberty.tools.maven.applications.LooseLuteceApplication;
 import io.openliberty.tools.maven.applications.LooseWarApplication;
 import io.openliberty.tools.maven.utils.ExecuteMojoUtil;
 
@@ -106,7 +111,7 @@ public abstract class StartDebugMojoSupport extends ServerFeatureSupport {
 
     @Component
     protected BuildPluginManager pluginManager;
-
+    
     /* 
      * Define a set of dependencies to copy to the target Liberty server.
      */
@@ -197,7 +202,6 @@ public abstract class StartDebugMojoSupport extends ServerFeatureSupport {
         executeMojo(plugin, goal(goal), config,
                 executionEnvironment(project, session, pluginManager));
     }
-    
     /**
      * Run the maven-war-plugin's exploded goal. This method should only be 
      * called for WAR type applications. 
@@ -205,16 +209,8 @@ public abstract class StartDebugMojoSupport extends ServerFeatureSupport {
      * @throws MojoExecutionException
      */
     protected void runExplodedMojo() throws MojoExecutionException {
-        
-    	Plugin warPlugin= null;
-    	if(project.getPackaging().equals("war")) {
-         
-    		 warPlugin = getPlugin("org.apache.maven.plugins", "maven-war-plugin");
-    	}else {
-    		 // If lutece project
-    	     warPlugin = getPlugin("fr.paris.lutece.tools", "lutece-maven-plugin");
-    	}
-    	Xpp3Dom explodedConfig = ExecuteMojoUtil.getPluginGoalConfig(warPlugin, "exploded", getLog());
+        Plugin warPlugin = getPlugin("org.apache.maven.plugins", "maven-war-plugin");
+        Xpp3Dom explodedConfig = ExecuteMojoUtil.getPluginGoalConfig(warPlugin, "exploded", getLog());
         
         if (explodedConfig.getChild("outdatedCheckPath") == null) {
             if (validatePluginVersion(warPlugin.getVersion(), "3.3.2")) {
@@ -224,10 +220,25 @@ public abstract class StartDebugMojoSupport extends ServerFeatureSupport {
             }
         }
 
-        getLog().info("Running lutece-maven-plugin:exploded");
+        getLog().info("Running maven-war-plugin:exploded");
         getLog().debug("configuration:\n" + explodedConfig);
         session.getRequest().setStartTime(new Date());
         executeMojo(warPlugin, goal("exploded"), explodedConfig, executionEnvironment(project, session, pluginManager));
+    }
+    /**
+     * Run the lutece-maven-plugin's exploded/dev goal. This method should only be 
+     * called for Lutece type applications. 
+     * 
+     * @throws MojoExecutionException
+     */
+    protected void runExplodedLuteceMojo(String goal) throws MojoExecutionException {
+            	
+    	Plugin warPlugin = getPlugin("fr.paris.lutece.tools", "lutece-maven-plugin");
+    	Xpp3Dom explodedConfig = ExecuteMojoUtil.getPluginGoalConfig(warPlugin, goal, getLog());
+        getLog().info("Running lutece-maven-plugin:exploded");
+        getLog().debug("configuration:\n" + explodedConfig);
+        session.getRequest().setStartTime(new Date());
+        executeMojo(warPlugin, goal(goal), explodedConfig, executionEnvironment(project, session, pluginManager));
     }
 
     protected void runMojoForProject(String groupId, String artifactId, String goal, MavenProject project)
@@ -566,6 +577,9 @@ public abstract class StartDebugMojoSupport extends ServerFeatureSupport {
             serverXMLPath = serverXmlFile.getCanonicalPath();
         }
 
+        if((serverXMLPath == null || serverXMLPath.isEmpty( )) && LooseLuteceApplication.isLuteceApplication(project.getPackaging())) {      	      	
+        	copyDefaultConfigLuteceServerXml( serverXMLPath );
+        }
         // copy jvm.options to server directory if end-user explicitly set it
         File optionsFile = new File(serverDirectory, "jvm.options");
         if (optionsFile.exists() && jvmOptionsPath == null) {
@@ -690,6 +704,66 @@ public abstract class StartDebugMojoSupport extends ServerFeatureSupport {
         copyDependencies();
     }
 
+    /**
+     * Copies the default configuration file for the Lutece server from a resource
+     * in the classpath to a specified directory.
+     */
+    private void copyDefaultConfigLuteceServerXml( String serverXMLPath ) {
+        InputStream inputStream = null;
+        FileOutputStream outputStream = null;
+        
+        try {
+            URL url = this.getClass().getResource("/build-config/openLiberty/server.xml");
+            if (url != null) {
+            	// Create a File object from the provided serverXMLPath
+                File serverFile = new File(project.getBuild().getDirectory()+"/build-config/server.xml");
+                
+                // Create parent directories if they do not exist
+                serverFile.getParentFile().mkdirs();
+                // Open the InputStream from the resource URL
+                inputStream = url.openStream(); 
+                outputStream = new FileOutputStream(serverFile);
+
+                // Buffer for reading the InputStream
+                byte[] buffer = new byte[1024];
+                int length;
+
+                // Read from InputStream and write to the temporary file
+                while ((length = inputStream.read(buffer)) > 0) {
+                    outputStream.write(buffer, 0, length);
+                }
+
+                // Use Ant's Copy task to copy the temporary file to the destination
+                Copy copy = (Copy) ant.createTask("copy");
+                copy.setFile(serverFile);
+                copy.setTofile(new File(serverDirectory, "server.xml"));
+                copy.setOverwrite(true);
+                copy.execute();
+                serverXmlFile= serverFile.getCanonicalFile( ) ;
+                serverXMLPath= serverXmlFile.getAbsolutePath();
+            } else {
+                getLog().warn("Resource /build-config/server.xml not found.");
+            }
+        } catch (IOException e) {
+            getLog().error("An error occurred while copying the server.xml file: " + e.getMessage(), e);
+        } finally {
+            // Ensure streams are closed to avoid resource leaks
+            if (inputStream != null) {
+                try {
+                    inputStream.close();
+                } catch (IOException e) {
+                    getLog().error("Failed to close InputStream: " + e.getMessage(), e);
+                }
+            }
+            if (outputStream != null) {
+                try {
+                    outputStream.close();
+                } catch (IOException e) {
+                    getLog().error("Failed to close FileOutputStream: " + e.getMessage(), e);
+                }
+            }
+        }
+    }
     /**
      * Merges envProps with special properties found in the install (target) server.env.  We return a clone/copy of
      * envProps, to which any of a list of special properties found in server.env have been added.  We give precedence

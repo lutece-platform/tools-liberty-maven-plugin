@@ -266,6 +266,7 @@ public abstract class PluginConfigSupport extends StartDebugMojoSupport {
             break;
         case "lutece-core":
         case "lutece-plugin":
+        case "lutece-site":
         case "liberty-assembly":
             // assuming liberty-assembly project will also have a war file
             // output.

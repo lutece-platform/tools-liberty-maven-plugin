@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.Validate;
 import org.apache.maven.artifact.Artifact;
@@ -231,6 +232,111 @@ public abstract class DeployMojoSupport extends LooseAppSupport {
         }
     }
 
+    /**
+     * Installs the Lutece project artifact using the loose application configuration file.
+     * 
+     * @param proj The Maven project associated with the Lutece application.
+     * @param config The loose configuration data for the application setup.
+     * @param container A boolean indicating whether to install within a container environment.
+     * @throws MojoExecutionException if an error occurs during the execution of the Maven plugin.
+     * @throws IOException if an I/O error occurs during installation.
+     */
+    protected void installLooseConfigLutece(MavenProject proj, LooseConfigData config, boolean container) throws MojoExecutionException, IOException {
+        // return error if webapp contains java source but it is not compiled yet.
+        File dir = new File(proj.getBuild().getOutputDirectory());
+        if (!dir.exists() && containsJavaSource(proj)) {
+            throw new MojoExecutionException(
+                    MessageFormat.format(messages.getString("error.project.not.compile"), proj.getId()));
+        }
+        // Validate maven-lutece-plugin version
+    	Plugin lutecePlugin = getPlugin("fr.paris.lutece.tools", "lutece-maven-plugin");
+        if (!validatePluginVersion(lutecePlugin.getVersion(), "5.0.0-SNAPSHOT")) {
+            throw new MojoExecutionException(
+            		"The lutece-maven-plugin does not support the dev mode. Please use maven-lutece-plugin version 5.0.0 or greater. Project: "+ proj.getArtifactId( ));
+      
+        }
+        if (container) {
+            setLooseProjectRootForContainer(proj, config);
+        }
+
+        LooseLuteceApplication looseLutece = new LooseLuteceApplication(proj, config, getLog());
+           
+        if(looseLutece.isExploded()) {
+        	
+            runExplodedLuteceMojo("exploded-webapp");
+            ////////////////////////////////////
+            // The order matters and establishes a well-defined precedence as documented: https://www.ibm.com/docs/en/was-liberty/base?topic=liberty-loose-applications
+            //
+            // ".. If you have two files with the same target location in the loose archive, the first occurrence of the file is used.
+            // The first occurrence is based on a top-down approach to reading the elements of the loose application configuration file..."
+            //
+            // Because the flow is so complicated we may have cases where we are applying filtering where one location contains a filtered
+            // version of a file and another potentially has an unfiltered one, and in such cases we need to make sure the filtered version takes
+            // precedence.
+            //
+            // In certain cases, like step 1. below we avoid writing a location into the loose app XML because we don't want an unfiltered
+            // to take precedence and prevent the filtered value from taking effect.
+            //
+            ////////////////////////////////////
+
+            // 1. Add source paths for the source dir and non-filtered web resources.  Since there could be overlap, i.e. the source dir
+            // could also be configured as a web resource, we combine these into a single step.
+            //
+            // We'll already have the runtime application monitor watching for file changes, and we don't want to set up the more expensive
+            // dev mode type of watching.
+            looseLutece.addNonFilteredSourceAndWebResourcesPaths();
+
+            // 2. target classes - this allows non-deploy mode cases (e.g. non-deploy cases such as `mvn compile` or m2e update in Eclipse)
+            // to pick up Java class updates upon compilation.
+            looseLutece.addOutputDir(looseLutece.getDocumentRoot(), new File(proj.getBuild().getOutputDirectory()), "/WEB-INF/classes");
+
+            //////////////////////////
+            // 3. Finally add the exploded dir
+            //
+            // In order to dynamically reflect changes in non-filtered web app source, this needs to go AFTER the unfiltered source entries above, since 
+            // changes in these un-monitored directories will NOT cause a new 'exploded' goal execution, so the updated content in the unmonitored source will
+            // now be newer than the stale data in the webapp dir folder.
+            //
+            // Might need more consideration in special case where filteringDD is disabled but also a webResources resource is set up for the war source dir (to get non-DD stuff like beans.xml).
+            //
+            // Perhaps this is a special case we can document "don't do this"..or perhaps the war source dir (default = webapp) should ALWAYS be monitored, and only extra web resources directories should
+            // be subject to the test of monitoring only if filtering is enabled.
+            //////////////////////////
+            looseLutece.addOutputDir(looseLutece.getDocumentRoot(), looseLutece.getWebAppDirectory(), "/");
+        }else {	
+        	// Don't especially need to run it exactly here, but in debugger we can see what we have
+        	runExplodedLuteceMojo("exploded-lite");
+            // 1.
+            looseLutece.addDefaultConfigurationDirPaths();
+            // 2.
+        	looseLutece.addSourceDir();
+        	 // 4. target classes - this allows non-deploy mode cases (e.g. non-deploy cases such as `mvn compile` or m2e update in Eclipse)
+            // to pick up Java class updates upon compilation.
+            looseLutece.addOutputDir(looseLutece.getDocumentRoot(), new File(proj.getBuild().getOutputDirectory()), "/WEB-INF/classes");
+
+
+            // 5. retrieve the directories defined as resources in the maven war plugin
+            //
+            //  - It would be cleaner to avoid duplicating the source dir in the case it also appears as a web resource, like we do in the exploded case.
+            // If this ever became an issue we could combine this with step 1. above.  However at the moment it doesn't seem worth the risk of making a change
+            // in such a key area.
+            looseLutece.addAllWebResourcesConfigurationPaths();
+            // 6. retrieves dependent library jar files
+            addEmbeddedLibLutece(looseLutece.getDocumentRoot(), proj, looseLutece, "/WEB-INF/lib/");
+ 
+            //////////////////////////
+            // 7. Finally add the exploded dir
+            looseLutece.addOutputDir(looseLutece.getDocumentRoot(), looseLutece.getWebAppDirectory(), "/");           
+        }
+        // add Manifest file
+        File manifestFile = MavenProjectUtil.getManifestFile(proj, "lutece-maven-plugin");
+        try {
+        	looseLutece.addManifestFile(manifestFile);
+        } catch (Exception e) {
+            throw new MojoExecutionException("Failed to install loose application. Error adding manifest file to loose lutece configuration file.", e);
+        }
+    }
+    
     // install ear project artifact using loose application configuration file
     protected void installLooseConfigEar(MavenProject proj, LooseConfigData config, boolean container) throws MojoExecutionException, IOException {
         if (container) {
@@ -347,6 +453,62 @@ public abstract class DeployMojoSupport extends LooseAppSupport {
                  ("jar".equals(artifact.getType()) || "jar".equals(artifact.getArtifactHandler().getExtension())) ) {
                 addLibrary(parent, looseApp, dir, artifact);
             }
+       
+        }
+    }
+    /**
+     * Adds embedded libraries specific to the Lutece project into the loose application configuration.
+     *
+     * @param parent      The parent XML element to which the embedded libraries will be added.
+     * @param warProject  The Maven project representing the WAR file containing the libraries.
+     * @param looseApp    The loose application configuration where the libraries are being included.
+     * @param dir         The directory path for the embedded libraries within the project.
+     * @throws IOException If an error occurs while adding library paths to the configuration.
+     */
+    private void addEmbeddedLibLutece(Element parent, MavenProject warProject, LooseApplication looseApp, String dir)
+            throws MojoExecutionException, IOException {
+        Set<Artifact> artifacts = warProject.getArtifacts();
+        getLog().debug("Number of compile dependencies for " + warProject.getArtifactId() + " : " + artifacts.size());
+
+        // Sort the artifacts by applying the priorities
+        List<Artifact> sortedArtifacts = artifacts.stream()
+            .filter(artifact -> ("compile".equals(artifact.getScope()) || "runtime".equals(artifact.getScope())) &&
+                                ("jar".equals(artifact.getType()) || "jar".equals(artifact.getArtifactHandler().getExtension())))
+            .sorted((artifact1, artifact2) -> {
+                boolean isReactor1 = isReactorMavenProject(artifact1);
+                boolean isReactor2 = isReactorMavenProject(artifact2);
+
+                // If one of the two artifacts is a Reactor project, it takes priority
+                if (isReactor1 && !isReactor2) {
+                    return -1;
+                } else if (!isReactor1 && isReactor2) {
+                    return 1;
+                }
+             // If both are Reactor projects or neither is, we apply priority based on the packaging
+                String packaging1 = artifact1.getType();
+                String packaging2 = artifact2.getType();
+                // Priority : lutece-site > lutece-plugin > lutece-core > others
+                if (packaging1.equals("lutece-site") && !packaging2.equals("lutece-site")) {
+                    return -1;  // lutece-site must come first
+                } else if (!packaging1.equals("lutece-site") && packaging2.equals("lutece-site")) {
+                    return 1;   // lutece-site must come first
+                } else if (packaging1.equals("lutece-plugin") && !packaging2.equals("lutece-plugin")) {
+                    return -1;  // lutece-plugin must come after lutece-site, but before the others
+                } else if (!packaging1.equals("lutece-plugin") && packaging2.equals("lutece-plugin")) {
+                    return 1;   // lutece-plugin must come after lutece-site
+                } else if (packaging1.equals("lutece-core") && !packaging2.equals("lutece-core")) {
+                    return -1;  // lutece-core must come after lutece-plugin, but before the others
+                } else if (!packaging1.equals("lutece-core") && packaging2.equals("lutece-core")) {
+                    return 1;   // lutece-core must come after lutece-plugin
+                } else {
+                    return 0;   // No change if both are equal or neither is lutece-site, lutece-plugin, or lutece-core
+                }
+            })
+            .collect(Collectors.toList());
+
+        // Add the sorted artifacts
+        for (Artifact artifact : sortedArtifacts) {
+            addLibrary(parent, looseApp, dir, artifact);
         }
     }
 
@@ -370,17 +532,23 @@ public abstract class DeployMojoSupport extends LooseAppSupport {
             if (isReactorMavenProject(artifact)) {
                 MavenProject dependProject = getReactorMavenProject(artifact);
                 String artifactFileName = getPreDeployAppFileName(dependProject);
-                Element archive = looseApp.addArchive(parent, dir + artifactFileName);
-                looseApp.addOutputDir(archive, new File(dependProject.getBuild().getOutputDirectory()), "/");
-
+                
+                
                 //Check if reactor project generates an ejb, bundle or jar 
                 String archivePlugin = "maven-jar-plugin";
                 String packaging = dependProject.getPackaging();
+
                 if (packaging.equalsIgnoreCase("ejb")) {
                     archivePlugin = "maven-ejb-plugin";
                 } else if (packaging.equalsIgnoreCase("bundle")) {
                     archivePlugin = "maven-bundle-plugin";
+                }else if (LooseLuteceApplication.isLuteceApplication(packaging)) {
+                    archivePlugin = "lutece-maven-plugin";
+                    artifactFileName = dependProject.getBuild().getFinalName()+".jar";
+                    looseApp.addOutputDir(parent, new File(dependProject.getBasedir(), "webapp"), "/");
                 }
+                Element archive = looseApp.addArchive(parent, dir + artifactFileName);
+                looseApp.addOutputDir(archive, new File(dependProject.getBuild().getOutputDirectory()), "/");
 
                 File manifestFile = MavenProjectUtil.getManifestFile(dependProject, archivePlugin);
 
@@ -562,6 +730,7 @@ public abstract class DeployMojoSupport extends LooseAppSupport {
             case "esa":
             case "lutece-core":
             case "lutece-plugin":
+            case "lutece-site":
             case "liberty-assembly":
                 supported = true;
                 break;
@@ -578,6 +747,7 @@ public abstract class DeployMojoSupport extends LooseAppSupport {
             case "war":
             case "lutece-core":
             case "lutece-plugin":
+            case "lutece-site":
             case "liberty-assembly":
             case "pom":
                 supported = true;

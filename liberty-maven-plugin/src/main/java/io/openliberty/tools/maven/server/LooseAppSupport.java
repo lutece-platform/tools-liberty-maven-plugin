@@ -21,6 +21,7 @@ import java.io.File;
 import org.apache.maven.project.MavenProject;
 
 import io.openliberty.tools.common.plugins.util.DevUtil;
+import io.openliberty.tools.maven.applications.LooseLuteceApplication;
 import io.openliberty.tools.maven.utils.MavenProjectUtil;
 
 /**
@@ -57,12 +58,10 @@ public abstract class LooseAppSupport extends PluginConfigSupport {
         }
 
         String packagingType = project.getPackaging();
-        if (packagingType.equals("liberty-assembly") 
-        		|| packagingType.equals("lutece-core")
-        		|| packagingType.equals("lutece-plugin")) {
+        if (packagingType.equals("liberty-assembly") || LooseLuteceApplication.isLuteceApplication(packagingType) ) {
             name += ".war";
         }
-        else if (packagingType.equals("ejb") || packagingType.equals("bundle")) {
+        else if (packagingType.equals("ejb") || packagingType.equals("bundle") ) {
             name += ".jar";
         } else {
             name += "." + packagingType;

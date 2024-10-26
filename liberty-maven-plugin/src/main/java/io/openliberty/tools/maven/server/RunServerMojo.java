@@ -113,6 +113,13 @@ public class RunServerMojo extends PluginConfigSupport {
                     case "jar":
                         runMojo("org.apache.maven.plugins", "maven-jar-plugin", "jar");
                         break;
+                    case "lutece-core":
+                    case "lutece-plugin":
+                    case "lutece-site":
+                    	 runMojo("fr.paris.lutece.tools", "lutece-maven-plugin", "war");
+                         break;
+
+                    	
                 }
             } catch (MojoExecutionException e) {
                 if (graph != null && !graph.getUpstreamProjects(project, true).isEmpty()) {

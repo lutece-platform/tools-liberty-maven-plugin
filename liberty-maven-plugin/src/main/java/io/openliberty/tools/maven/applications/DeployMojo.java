@@ -179,7 +179,7 @@ public class DeployMojo extends DeployMojoSupport {
                 continue;
             }
             // skip lutece plugins artifact
-            if ("lutece-plugin".equals(artifact.getType( )) || "lutece-core".equals(artifact.getType( ))) {
+            if (LooseLuteceApplication.isLuteceApplication(artifact.getType( ))) {
                 continue;
             }
             if (artifact.getScope().equals("compile")) {
@@ -225,8 +225,6 @@ public class DeployMojo extends DeployMojoSupport {
 
         switch (proj.getPackaging()) {
         	case "war":
-        	case "lutece-plugin":
-        	case "lutece-core":
         		 validateAppConfig(applicationFullPath.getCanonicalPath(), application, proj.getArtifactId());
                  getLog().info(MessageFormat.format(messages.getString("info.install.app"), looseConfigFileName));
                  installLooseConfigWar(proj, config, false);
@@ -235,6 +233,24 @@ public class DeployMojo extends DeployMojoSupport {
                      // install another copy that is container specific
                      config = createLooseConfigData();
                      installLooseConfigWar(proj, config, true);
+                     try {
+                         config.toXmlFile(devcLooseConfigFile);
+                     } catch (Exception e) {
+                         throw new MojoExecutionException("Error writing loose application configuration file: "+devcLooseConfigFile.getCanonicalPath(), e);
+                     }
+                 }
+                 break;
+        	case "lutece-plugin":
+        	case "lutece-core":
+        	case "lutece-site":
+        		 validateAppConfig(applicationFullPath.getCanonicalPath(), application, proj.getArtifactId());
+                 getLog().info(MessageFormat.format(messages.getString("info.install.app"), looseConfigFileName));
+                 installLooseConfigLutece(proj, config, false);
+                 installAndVerifyApp(config, looseConfigFile, application);
+                 if (proj.getProperties().containsKey("container")) {
+                     // install another copy that is container specific
+                     config = createLooseConfigData();
+                     installLooseConfigLutece(proj, config, true);
                      try {
                          config.toXmlFile(devcLooseConfigFile);
                      } catch (Exception e) {

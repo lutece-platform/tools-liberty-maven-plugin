@@ -75,6 +75,7 @@ import io.openliberty.tools.common.plugins.util.ServerFeatureUtil;
 import io.openliberty.tools.common.plugins.util.ServerStatusUtil;
 import io.openliberty.tools.maven.BasicSupport;
 import io.openliberty.tools.maven.applications.DeployMojoSupport;
+import io.openliberty.tools.maven.applications.LooseLuteceApplication;
 import io.openliberty.tools.maven.applications.LooseWarApplication;
 import io.openliberty.tools.maven.utils.DevHelper;
 import io.openliberty.tools.maven.utils.ExecuteMojoUtil;
@@ -305,6 +306,8 @@ public class DevMojo extends LooseAppSupport {
     
     private boolean isExplodedLooseWarApp = false;
     private boolean isNewInstallation = true;
+    private boolean isExplodedLooseLuteceApp = false;
+
 
     /**
      * Set the container option.
@@ -822,11 +825,12 @@ public class DevMojo extends LooseAppSupport {
         
         @Override
         protected void updateLooseApp() throws PluginExecutionException {
+        	if(LooseLuteceApplication.isLuteceApplication(project.getPackaging( ))) {
+        		 updateLooseLuteceApp();
+        	}
             // Only perform operations if we are a war type application
-            if (project.getPackaging().equals("war") 
-            		|| project.getPackaging().equals("lutece-core")
-            		|| project.getPackaging().equals("lutece-plugin")
-            		) {
+            if (project.getPackaging().equals("war") )
+            {
                 // Check if we are using an exploded loose app
                 if (LooseWarApplication.isExploded(project)) {
                     if (!isExplodedLooseWarApp) {
@@ -860,17 +864,53 @@ public class DevMojo extends LooseAppSupport {
                 }
             }
         }
-
+        private void updateLooseLuteceApp() throws PluginExecutionException {
+	        // Check if we are using an exploded loose app
+	        if (LooseLuteceApplication.isExploded(project)) {
+		           if (!isExplodedLooseLuteceApp) {
+			           // The project was previously running with a "non-exploded" loose app.
+			           // Update this flag and redeploy as an exploded loose app.
+			           isExplodedLooseLuteceApp = true;                      
+			           // Validate lutece-maven-plugin version
+		           Plugin warPlugin = getPlugin("fr.paris.lutece.tools", "lutece-maven-plugin");
+		           if (!validatePluginVersion(warPlugin.getVersion(), "5.0.0-SNAPSHOT")) {
+		                getLog().warn(
+		                         "Exploded Lutece functionality is enabled. Please use lutece-maven-plugin version 5.0.0 or greater for best results.");
+		           }             
+		           redeployApp();
+	           } else {
+	                  try {
+	                       runExplodedLuteceMojo("exploded-webapp");
+	                  } catch (MojoExecutionException e) {
+	                       getLog().error("Failed to run lutece:exploded goal", e);
+	                  }
+	           }
+	           } else {
+	                  if (isExplodedLooseLuteceApp) {
+	                  // Dev mode was previously running with an exploded loose lutece app. The app
+	                  // must have been updated to remove any exploded war capabilities 
+	                  // (filtering, etc). Update this flag and redeploy.
+	                    	isExplodedLooseLuteceApp = false;
+	                        redeployApp();
+	                    }
+	           }
+	          
+        }
         @Override
         protected void resourceDirectoryCreated() throws IOException {
-            if ((project.getPackaging().equals("war") 
-            		|| project.getPackaging().equals("lutece-core")
-            		|| project.getPackaging().equals("lutece-plugin")
-            		)
+            if (project.getPackaging().equals("war") 	
             		&& LooseWarApplication.isExploded(project)) {
                 try {
                     runMojo("org.apache.maven.plugins", "maven-resources-plugin", "resources");
                     runExplodedMojo();
+                } catch (MojoExecutionException e) {
+                    getLog().error("Failed to run goal(s)", e);
+                }
+            } else if (( LooseLuteceApplication.isLuteceApplication(project.getPackaging()))
+            		&& LooseLuteceApplication.isExploded(project)) {
+                try {
+                    runMojo("org.apache.maven.plugins", "maven-resources-plugin", "resources");
+                    runExplodedLuteceMojo("exploded-webapp");
                 } catch (MojoExecutionException e) {
                     getLog().error("Failed to run goal(s)", e);
                 }
@@ -905,11 +945,17 @@ public class DevMojo extends LooseAppSupport {
 
             deleteFile(fileChanged, resourceParent, outputDirectory, null);
             if ((project.getPackaging().equals("war") 
-            		|| project.getPackaging().equals("lutece-core")
-            		|| project.getPackaging().equals("lutece-plugin"))
-            		&& LooseWarApplication.isExploded(project)) {
+            		&& LooseWarApplication.isExploded(project))) {
                 try {
                     runExplodedMojo();
+                } catch (MojoExecutionException e) {
+                    getLog().error("Failed to run goal(s)", e);
+                }
+            } 
+            else if (( LooseLuteceApplication.isLuteceApplication(project.getPackaging()))
+            		&& LooseLuteceApplication.isExploded(project)) {
+                try {
+                    runExplodedLuteceMojo("exploded-webapp");
                 } catch (MojoExecutionException e) {
                     getLog().error("Failed to run goal(s)", e);
                 }
@@ -943,11 +989,14 @@ public class DevMojo extends LooseAppSupport {
             // set the updated project in current session;
             Plugin backupLibertyPlugin = getLibertyPlugin();
             Plugin backupWarPlugin = getPluginForProject("org.apache.maven.plugins", "maven-war-plugin", project);
+            Plugin backupLutecePlugin = getPluginForProject("fr.paris.lutece.tools", "lutece-maven-plugin", project);
+
             MavenProject backupProject = project;
             project = build.getProject();
             session.setCurrentProject(project);
             Plugin libertyPlugin = getLibertyPlugin();
             Plugin warPlugin = getPluginForProject("org.apache.maven.plugins", "maven-war-plugin", project);
+            Plugin lutecePlugin = getPluginForProject("fr.paris.lutece.tools", "lutece-maven-plugin", project);
 
             try {
                 // TODO rebuild the corresponding module if the compiler options have changed
@@ -992,6 +1041,11 @@ public class DevMojo extends LooseAppSupport {
                 config = ExecuteMojoUtil.getPluginGoalConfig(warPlugin, "exploded", getLog());
                 oldConfig = ExecuteMojoUtil.getPluginGoalConfig(backupWarPlugin, "exploded", getLog());
                 if (!Objects.equals(config, oldConfig) || !warPlugin.getVersion().equals(backupWarPlugin.getVersion())) {
+                    redeployApp = true;
+                }
+                config = ExecuteMojoUtil.getPluginGoalConfig(lutecePlugin, "exploded", getLog());
+                oldConfig = ExecuteMojoUtil.getPluginGoalConfig(backupLutecePlugin, "exploded", getLog());
+                if (!Objects.equals(config, oldConfig) || !lutecePlugin.getVersion().equals(backupLutecePlugin.getVersion())) {
                     redeployApp = true;
                 }
                 config = ExecuteMojoUtil.getPluginGoalConfig(libertyPlugin, "generate-features", getLog());
@@ -1050,7 +1104,13 @@ public class DevMojo extends LooseAppSupport {
                 // There is so much that we are dynamically able to do that this could be surprising.
                 // For now issue a warning
                 Set<Path> oldMonitoredWebResourceDirs = new HashSet<Path>(this.monitoredWebResourceDirs);
-                Set<Path> newMonitoredWebResourceDirs = new HashSet<Path>(LooseWarApplication.getWebSourceDirectoriesToMonitor(project));
+                Set<Path> newMonitoredWebResourceDirs;
+                if (LooseLuteceApplication.isLuteceApplication(project.getPackaging())) {
+                     newMonitoredWebResourceDirs = new HashSet<Path>(LooseLuteceApplication.getWebSourceDirectoriesToMonitor(project));
+                }else {
+                     newMonitoredWebResourceDirs = new HashSet<Path>(LooseWarApplication.getWebSourceDirectoriesToMonitor(project));
+                }
+                
                 if (!oldMonitoredWebResourceDirs.equals(newMonitoredWebResourceDirs)) {
                     getLog().warn("Change detected in the set of filtered web resource directories, since dev mode was first launched.  Adding/deleting a web resource directory has no change on the set of directories monitored by dev mode.  Changing the watch list will require a dev mode restart");
                 }
@@ -1440,10 +1500,7 @@ public class DevMojo extends LooseAppSupport {
             runLibertyMojoDeploy();
         }
         
-        if (project.getPackaging().equals("war") 
-        		|| project.getPackaging().equals("lutece-core")
-        		|| project.getPackaging().equals("lutece-plugin")
-        		) {
+        if (project.getPackaging().equals("war") ) {
             // Check if we are using the exploded loose app functionality and save for checking later on. 
             isExplodedLooseWarApp = LooseWarApplication.isExploded(project);
         
@@ -1455,11 +1512,18 @@ public class DevMojo extends LooseAppSupport {
                 }
             }
         }
+        List<Path> webResourceDirs;
+        if (LooseLuteceApplication.isLuteceApplication(project.getPackaging())) {
+        	// Check if we are using the exploded loose app functionality and save for checking later on. 
+            isExplodedLooseLuteceApp = LooseLuteceApplication.isExploded(project);
+            webResourceDirs = LooseLuteceApplication.getWebSourceDirectoriesToMonitor(project);  
+        }else {
+            webResourceDirs = LooseWarApplication.getWebSourceDirectoriesToMonitor(project);
+        }
         
         // resource directories
         List<File> resourceDirs = getResourceDirectories(project, outputDirectory);
         
-        List<Path> webResourceDirs = LooseWarApplication.getWebSourceDirectoriesToMonitor(project);
 
         JavaCompilerOptions compilerOptions = getMavenCompilerOptions(project);
 
