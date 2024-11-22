@@ -89,7 +89,10 @@ public class RunServerMojo extends PluginConfigSupport {
             }
         } else if (projectPackaging.equals("pom")) {
             getLog().debug("Skipping compile/resources on module with pom packaging type");
-        } else {
+        } else if (projectPackaging.equals("lutece-site")) {
+            getLog().debug("Skipping compile/resources on module with lutece-site packaging type");
+        }  
+        else {
             runMojo("org.apache.maven.plugins", "maven-resources-plugin", "resources");
             runMojo("org.apache.maven.plugins", "maven-compiler-plugin", "compile");
             updateArtifactPathToOutputDirectory(project);
