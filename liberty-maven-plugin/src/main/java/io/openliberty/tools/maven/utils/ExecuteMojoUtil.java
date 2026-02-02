@@ -22,9 +22,11 @@ import static org.twdata.maven.mojoexecutor.MojoExecutor.name;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginExecution;
@@ -96,7 +98,7 @@ public class ExecuteMojoUtil {
             "testFailureIgnore", "testNGArtifactName", "threadCount", "threadCountClasses",
             "threadCountMethods", "threadCountSuites", "trimStackTrace", "useFile",
             "useManifestOnlyJar", "useModulePath", "useSystemClassLoader",
-            "useUnlimitedThreads", "workingDirectory"
+            "useUnlimitedThreads", "workingDirectory", "jdkToolchain"
     ));
 
     // https://maven.apache.org/surefire/maven-failsafe-plugin/integration-test-mojo.html
@@ -118,7 +120,7 @@ public class ExecuteMojoUtil {
             "systemPropertyVariables", "tempDir", "test", "testClassesDirectory",
             "testNGArtifactName", "threadCount", "threadCountClasses", "threadCountMethods",
             "threadCountSuites", "trimStackTrace", "useFile", "useManifestOnlyJar",
-            "useModulePath", "useSystemClassLoader", "useUnlimitedThreads", "workingDirectory"
+            "useModulePath", "useSystemClassLoader", "useUnlimitedThreads", "workingDirectory", "jdkToolchain"
     ));
 
     // https://maven.apache.org/surefire/maven-failsafe-plugin/verify-mojo.html
@@ -204,7 +206,7 @@ public class ExecuteMojoUtil {
             "installDirectory", "assemblyArchive", "assemblyArtifact", "libertyRuntimeVersion",
             "install", "licenseArtifact", "serverName", "userDirectory", "outputDirectory",
             "assemblyInstallDirectory", "refresh", "skip", "serverXmlFile", "configDirectory", 
-            "serverEnvFile", "mergeServerEnv"
+            "serverEnvFile", "mergeServerEnv","jdkToolchain"
     // executeMojo can not use alias parameters:
     // "runtimeArchive", "runtimeArtifact", "runtimeInstallDirectory" "configFile" "serverEnv"
     ));
@@ -269,8 +271,9 @@ public class ExecuteMojoUtil {
         String execId = "default";
         int numExec = 0;
 
-        List<PluginExecution> executions = plugin.getExecutions();
-        if (executions != null) {
+        List<PluginExecution> executions = plugin.getExecutions()
+                .stream().sorted(Comparator.comparing(PluginExecution::getPriority).reversed()).collect(Collectors.toList());
+        if (!executions.isEmpty()) {
             for (PluginExecution e : executions) {
                 if (e.getGoals() != null && e.getGoals().contains(goal)) {
                     if (numExec == 0) {
@@ -289,10 +292,10 @@ public class ExecuteMojoUtil {
             config = (Xpp3Dom) plugin.getConfiguration();
         }
         if (numExec > 1) {
-            log.warn(plugin.getArtifactId() + ":" + goal 
+            log.warn(plugin.getArtifactId() + ":" + goal
                     + " goal has multiple execution configurations (default to \"" + execId + "\" execution)");
         }
-        
+
         if (config == null) {
             config = configuration();
         } else {
@@ -371,9 +374,12 @@ public class ExecuteMojoUtil {
         case "maven-war-plugin:war":
             goalConfig = stripConfigElements(config, WAR_PARAMS);
             break;
+        case "liberty-maven-plugin:dev":
+        	goalConfig = config;
+            break;
         default:
             goalConfig = config;
-            log.info("skip execution goal configuration validation for " + executionGoal);
+            log.debug("skip execution goal configuration validation for " + executionGoal);
             break;
         }
         return goalConfig;

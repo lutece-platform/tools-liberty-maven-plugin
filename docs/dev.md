@@ -20,6 +20,7 @@ While dev mode is running, perform the following in the command terminal to run 
 * <kbd>Enter</kbd> - run tests on demand, press <kbd>Enter</kbd>.
 * <kbd>r</kbd> - restart the server, type <kbd>r</kbd> and press <kbd>Enter</kbd>.
 * <kbd>h</kbd> - see the help menu for available actions, type <kbd>h</kbd> and press <kbd>Enter</kbd>.
+* <kbd>p</kbd> - see the port information, type <kbd>p</kbd> and press <kbd>Enter</kbd>.
 * <kbd>q</kbd> - stop the server and quit dev mode, press <kbd>Ctrl</kbd>-<kbd>C</kbd> or type <kbd>q</kbd> and press <kbd>Enter</kbd>.
 
 ###### Features
@@ -97,18 +98,19 @@ The following are the parameters supported by this goal in addition to the [comm
 
 | Parameter | Description | Required |
 | --------  | ----------- | -------  |
-| hotTests | If set to `true`, run unit and integration tests automatically after every change. The default value is `false`. | No |
-| skipTests | If set to `true`, do not run any tests in dev mode. The default value is `false`. | No |
-| skipUTs | If set to `true`, skip unit tests. The default value is `false`. If the project packaging type is `ear`, unit tests are always skipped. | No |
-| skipITs | If set to `true`, skip integration tests. The default value is `false`.  | No |
+| changeOnDemandTestsAction | If set to `true`, change the action for running on demand tests from `Enter` to type `t` and press `Enter`. The default value is `false`. This parameter is introduced in version 3.11.0. | No |
+| compileWait | Time in seconds to wait before processing Java changes. If you encounter compile errors while refactoring, increase this value to allow all files to be saved before compilation occurs. The default value is `0.5` seconds. | No |
 | debug | Whether to allow attaching a debugger to the running server. The default value is `true`. | No |
 | debugPort | The debug port that you can attach a debugger to. The default value is `7777`. | No |
-| compileWait | Time in seconds to wait before processing Java changes. If you encounter compile errors while refactoring, increase this value to allow all files to be saved before compilation occurs. The default value is `0.5` seconds. | No |
-| serverStartTimeout | Maximum time to wait (in seconds) to verify that the server has started. The value must be an integer greater than or equal to 0. The default value is `90` seconds. | No |
-| verifyTimeout | Maximum time to wait (in seconds) to verify that the application has started or updated before running integration tests. The value must be an integer greater than or equal to 0. The default value is `30` seconds. | No |
-| recompileDependencies | If set to `true`, when a Java file is changed, recompile all classes in that module and any modules that depend on it. The default value is `false` when running dev mode on a single module, and `true` when running dev mode on a multi module project.  | No |
 | generateFeatures | If set to `true`, when a Java file, server configuration file, or build file is changed, generate features required by the application in the source configuration directory. The default value is `false`. | No |
+| hotTests | If set to `true`, run unit and integration tests automatically after every change. The default value is `false`. | No |
+| recompileDependencies | If set to `true`, when a Java file is changed, recompile all classes in that module and any modules that depend on it. The default value is `false` when running dev mode on a single module, and `true` when running dev mode on a multi module project.  | No |
+| serverStartTimeout | Maximum time to wait (in seconds) to verify that the server has started. The value must be an integer greater than or equal to 0. The default value is `90` seconds. | No |
 | skipInstallFeature | If set to `true`, the `install-feature` goal will be skipped when `dev` mode is started on an already existing Liberty runtime installation. It will also be skipped when `dev` mode is running and a restart of the server is triggered either directly by the user or by application changes. The `install-feature` goal will be invoked though when `dev` mode is running and a change to the configured features is detected. The default value is `false`. | No |
+| skipITs | If set to `true`, skip integration tests. The default value is `false`.  | No |
+| skipTests | If this option is enabled, do not run any tests in dev mode, even when the on demand test action is entered or when `hotTests` is set to `true`. The default value is `false`. | No |
+| skipUTs | If set to `true`, skip unit tests. The default value is `false`. If the project packaging type is `ear`, unit tests are always skipped. | No |
+| verifyTimeout | Maximum time to wait (in seconds) to verify that the application has started or updated before running integration tests. The value must be an integer greater than or equal to 0. The default value is `30` seconds. | No |
 
 ###### System Properties for Integration Tests
 
@@ -129,22 +131,48 @@ Start a Liberty server in a local container using the Containerfile or Dockerfil
 
 When dev mode runs with container support, it builds a container image and runs the container. You can examine the commands that it uses to build and run the container by viewing the console output of dev mode. Additionally, it still provides the same features as the `dev` goal. It monitors files for changes and runs tests either automatically or on demand. This mode also allows you to attach a debugger to work on your application. You can review the logs generated by your server in the Liberty directory in your project e.g. target/liberty/wlp/usr/servers/defaultServer/logs.
 
+
+##### Copying Generated Configurations to Container Image
+
+
 N.B. starting in 3.6.1, dev mode invokes `generate-features` if the `generateFeatures` configuration parameter is set to true. Ensure that the `generated-features.xml` configuration file is copied to your container image via your Containerfile/Dockerfile.
 ```dockerfile
 COPY --chown=1001:0  target/liberty/wlp/usr/servers/defaultServer/configDropins/overrides/generated-features.xml /config/configDropins/overrides/
 ```
-If on Linux, it is recommended that you copy the entire `configDropins/overrides` directory to your container image via your Containerfile/Dockerfile.
+If you are using `liberty.var.{var}` or `liberty.defaultVar.{var}`, then the server configuration file named `liberty-plugin-variable-config.xml` is generated in the configDropins/overrides folder or configDropins/defaults folder of the target server respectively.
+To ensure your application runs correctly inside a container, you need to copy this generated liberty-plugin-variable-config.xml file into your container image. 
+
+You can do this by adding one of the following lines to your Dockerfile or Containerfile, depending on which type of variable you used.
+To copy the file from the overrides folder:
+
+```dockerfile
+COPY --chown=1001:0  target/liberty/wlp/usr/servers/defaultServer/configDropins/overrides/liberty-plugin-variable-config.xml /config/configDropins/overrides/
+```
+To copy the file from the defaults folder:
+
+```dockerfile
+COPY --chown=1001:0  target/liberty/wlp/usr/servers/defaultServer/configDropins/defaults/liberty-plugin-variable-config.xml /config/configDropins/defaults/
+```
+
+
+On Linux, it's a good practice to copy the entire configDropins/overrides and configDropins/defaults directories into your container image using your Dockerfile. 
+
+This helps you avoid file permission problems that can happen when the user ID of the container is different from the host's user ID.
 ```dockerfile
 COPY --chown=1001:0  target/liberty/wlp/usr/servers/defaultServer/configDropins/overrides /config/configDropins/overrides
+COPY --chown=1001:0  target/liberty/wlp/usr/servers/defaultServer/configDropins/defaults /config/configDropins/defaults
 ```
+Remember, you only need to include the command that matches your configuration.
 
 ###### Prerequisites
 
-You need to install Podman or the Docker runtime (Docker Desktop on macOS or Windows, or Docker on Linux) locally to use this Maven goal. If using Podman, version 4.4.4 or higher is required. If using Docker, the installed Docker Client and Engine versions must be 18.03.0 or higher.
+You need to install Podman or the Docker runtime (Docker Desktop on macOS or Windows, or Docker on Linux) locally to use this Maven goal. When using Podman, you'll need version 4.4.4 or higher, and the Maven plugin requires version [3.9](https://github.com/OpenLiberty/ci.maven/releases/tag/liberty-maven-3.9) or higher. If using Docker, the installed Docker Client and Engine versions must be 18.03.0 or higher.
 
 ###### Containerfile/Dockerfile
 
 Your project must have a Containerfile or Dockerfile to use dev mode in container mode. An example of container configuration is shown in [Building an application image](https://github.com/openliberty/ci.docker/#building-an-application-image). The parent image must be one of the [Open Liberty container images](https://github.com/openliberty/ci.docker/#container-images), or an image using Linux with Open Liberty configured with the same paths as the Open Liberty container images. The container config file must copy the application .war file and the server configuration files that the application requires into the container.
+
+In case you are using a custom image, you need to add `--user 1001` (or whatever user id the image should run with) to your `containerRunOpts` configuration variable. You can also set it on the command line using `"-DcontainerRunOpts=--user 1001"`.
 
 Dev mode works with a temporary, modified copy of your container config file to allow for hot deployment during development as detailed below. When dev mode starts up, it pulls the latest version of the parent image defined in the container config file, builds the container image, then runs the container. Note that the context of the container's `build` command used to generate the container image is the directory containing the container config file, unless the `containerBuildContext` parameter is specified. When dev mode exits, the container is stopped and deleted, and the logs are preserved in the directory mentioned above.
 
@@ -176,9 +204,10 @@ While dev mode is running in container mode, perform the following in the comman
 
 * <kbd>g</kbd> - toggle the automatic generation of features, type <kbd>g</kbd> and press <kbd>Enter</kbd>. A new server configuration file will be generated in the SOURCE configDropins/overrides configuration directory.
 * <kbd>o</kbd> - optimize the list of generated features, type <kbd>o</kbd> and press <kbd>Enter</kbd>. A new server configuration file will be generated in the SOURCE configDropins/overrides configuration directory.
-* <kbd>Enter</kbd> - run tests on demand, press <kbd>Enter</kbd>.
+* <kbd>t</kbd> or <kbd>Enter</kbd> - If `changeOnDemandTestAction` is set to `true`, type <kbd>t</kbd> and press <kbd>Enter</kbd> to run tests on demand. Otherwise, press <kbd>Enter</kbd>. 
 * <kbd>r</kbd> - rebuild the container image and restart the container, type <kbd>r</kbd> and press <kbd>Enter</kbd>.
 * <kbd>h</kbd> - see the help menu for available actions, type <kbd>h</kbd> and press <kbd>Enter</kbd>.
+* <kbd>p</kbd> - see the port information, type <kbd>p</kbd> and press <kbd>Enter</kbd>.
 * <kbd>q</kbd> - stop the server and quit dev mode, press <kbd>Ctrl</kbd>-<kbd>C</kbd> or type <kbd>q</kbd> and press <kbd>Enter</kbd>.
 
 ###### Linux Limitations
@@ -265,9 +294,9 @@ These parameters are available in addition to the ones in the `dev` section abov
 | Parameter | Description | Required |
 | --------  | ----------- | -------  |
 | container | If set to `true`, run the server in the container specified by the `containerfile` parameter. Setting this to `true` is equivalent to using the `devc` goal. The default value is `false` when the `dev` goal is used, and `true` when the `devc` goal is used. | No |
-| containerRunOpts | Specifies options to add to the `run` command when using dev mode to launch your server in a container. For example, `-e key=value` is recognized by `run` to define an environment variable with the name `key` and value `value`. This attribute replaces the deprecated `dockerRunOpts` attribute. | No |
-| containerfile | Location of a Containerfile/Dockerfile to be used by dev mode to build the image for the container that will run your Liberty server. The default value is `Containerfile` or `Dockerfile`. This attribute replaces the deprecated `dockerfile` attribute. | No |
 | containerBuildContext | The container build context directory to be used by dev mode for the `build` command.  The default location is the directory of the Containerfile/Dockerfile. This attribute replaces the deprecated `dockerBuildContext` attribute. | No |
 | containerBuildTimeout | Maximum time to wait (in seconds) for the completion of the container operation to build the image. The value must be an integer greater than 0. The default value is `600` seconds. This attribute replaces the deprecated `dockerBuildTimeout` attribute. | No |
-| skipDefaultPorts | If set to `true`, dev mode will not publish the default container port mappings of `9080:9080` (HTTP) and `9443:9443` (HTTPS). Use this option if you would like to specify alternative local ports to map to the exposed container ports for HTTP and HTTPS using the `containerRunOpts` parameter. | No |
+| containerfile | Location of a Containerfile/Dockerfile to be used by dev mode to build the image for the container that will run your Liberty server. The default value is `Containerfile` or `Dockerfile`. This attribute replaces the deprecated `dockerfile` attribute. | No |
+| containerRunOpts | Specifies options to add to the `run` command when using dev mode to launch your server in a container. For example, `-e key=value` is recognized by `run` to define an environment variable with the name `key` and value `value`. This attribute replaces the deprecated `dockerRunOpts` attribute. | No |
 | keepTempContainerfile | If set to `true`, dev mode will not delete the temporary modified copy of your Containerfile used to build the contianer image. This file is handy in case you need to debug the process of building the container image. The path of the temporary Containerfile can be seen when dev mode displays the container's `build` command. The default value is `false`. This attribute replaces the deprecated `keepTempDockerfile` attribute. | No |
+| skipDefaultPorts | If set to `true`, dev mode will not publish the default container port mappings of `9080:9080` (HTTP) and `9443:9443` (HTTPS). Use this option if you would like to specify alternative local ports to map to the exposed container ports for HTTP and HTTPS using the `containerRunOpts` parameter. | No |

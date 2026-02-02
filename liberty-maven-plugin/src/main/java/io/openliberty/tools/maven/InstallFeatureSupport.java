@@ -1,5 +1,5 @@
 /**
- * (C) Copyright IBM Corporation 2020, 2023.
+ * (C) Copyright IBM Corporation 2020, 2025.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,12 +24,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import io.openliberty.tools.common.plugins.util.LibertyPropFilesUtility;
+import io.openliberty.tools.maven.utils.CommonLogger;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Parameter;
 
 import io.openliberty.tools.ant.FeatureManagerTask.Feature;
 import io.openliberty.tools.common.plugins.util.InstallFeatureUtil;
 import io.openliberty.tools.common.plugins.util.InstallFeatureUtil.ProductProperties;
+import io.openliberty.tools.common.plugins.util.ServerFeatureUtil.FeaturesPlatforms;
 import io.openliberty.tools.common.plugins.util.PluginExecutionException;
 import io.openliberty.tools.common.plugins.util.PluginScenarioException;
 import io.openliberty.tools.maven.server.types.Features;
@@ -155,15 +158,16 @@ public abstract class InstallFeatureSupport extends ServerFeatureSupport {
         List<String> result = new ArrayList<String>();
         org.apache.maven.model.DependencyManagement dependencyManagement = project.getDependencyManagement();
         if(dependencyManagement == null) {
-        	getLog().debug("Feature-bom is not provided by the user");
+        	getLog().debug("Features-bom is not provided by the user");
         	return null;
         }
         List<org.apache.maven.model.Dependency> dependencyManagementArtifacts = dependencyManagement.getDependencies();
         for (org.apache.maven.model.Dependency dependencyArtifact: dependencyManagementArtifacts){
-            if (("pom").equals(dependencyArtifact.getType())) {
+            if (("pom").equals(dependencyArtifact.getType()) && ("features-bom").equals(dependencyArtifact.getArtifactId())) {
                 String coordinate = String.format("%s:%s:%s",
                         dependencyArtifact.getGroupId(), FEATURES_JSON_ARTIFACT_ID, dependencyArtifact.getVersion());
                 result.add(coordinate);
+                getLog().debug("Features-bom is provided by the user");
                 getLog().info("Additional user feature json coordinate: " + coordinate);
             }
         }
@@ -211,7 +215,7 @@ public abstract class InstallFeatureSupport extends ServerFeatureSupport {
      * @param containerName The container name if the features should be installed in a container. Otherwise null.
      * @return Set of Strings containing the specified Liberty features
      */
-    protected Set<String> getSpecifiedFeatures(String containerName) throws PluginExecutionException {
+    protected FeaturesPlatforms getSpecifiedFeatures(String containerName) throws PluginExecutionException {
         Set<String> pluginListedFeatures = getPluginListedFeatures(false);
 
         if (util == null) {
@@ -221,19 +225,26 @@ public abstract class InstallFeatureSupport extends ServerFeatureSupport {
 
         if (util == null && noFeaturesSection) {
             //No features were installed because acceptLicense parameter was not configured
-            return new HashSet<String>();
+            return new FeaturesPlatforms();
         }
         else if (util == null && !noFeaturesSection) {
             Set<String> featuresToInstall = new HashSet<String>();
             for (Feature feature : features.getFeatures()) {
                 featuresToInstall.add(feature.toString());
             }
-            return featuresToInstall;
+            return new FeaturesPlatforms(featuresToInstall, new HashSet<String>());
         }
         else {
             Set<String> dependencyFeatures = getDependencyFeatures();
-            Set<String> serverFeatures = serverDirectory.exists() ? util.getServerFeatures(serverDirectory, getLibertyDirectoryPropertyFiles()) : null;
-            return util.combineToSet(pluginListedFeatures, dependencyFeatures, serverFeatures);
+            Set<String> serverFeatures = new HashSet<String>();
+            Set<String> serverPlatforms = new HashSet<String>();
+            FeaturesPlatforms getServerResult = serverDirectory.exists() ? util.getServerFeatures(serverDirectory, LibertyPropFilesUtility.getLibertyDirectoryPropertyFiles(new CommonLogger(getLog()), installDirectory, userDirectory, serverDirectory, new File(outputDirectory, serverName))) : null;
+            if (getServerResult != null) {
+            	serverFeatures = getServerResult.getFeatures();
+            	serverPlatforms = getServerResult.getPlatforms();
+            }
+            
+            return new FeaturesPlatforms(util.combineToSet(pluginListedFeatures, dependencyFeatures, serverFeatures),serverPlatforms);
             
         }
     }

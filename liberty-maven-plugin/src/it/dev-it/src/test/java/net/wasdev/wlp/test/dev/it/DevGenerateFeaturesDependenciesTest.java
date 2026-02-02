@@ -41,6 +41,8 @@ public class DevGenerateFeaturesDependenciesTest extends BaseDevTest {
 
     @Test
     public void updateDependencyTest() throws Exception {
+       //debugPort set as 8077
+       assertTrue(verifyLogMessageExists("Listening for transport dt_socket at address: 8077", 20000) || verifyLogMessageExists("The debug port 8077 is not available.",20000));
        assertTrue(verifyLogMessageExists("Liberty is running in dev mode.", 10000));
 
        File generatedFeaturesFile = getGeneratedFeaturesFile();
@@ -56,7 +58,7 @@ public class DevGenerateFeaturesDependenciesTest extends BaseDevTest {
        assertTrue(verifyLogMessageExists("mpHealth-2.2", 10000)); // should appear in the message "CWWKF0012I: The server installed the following features:"
 
        int generateFeaturesCount = countOccurrences("Running liberty:generate-features", logFile);
-       assertTrue(verifyLogMessageExists("Source compilation was successful.", 10000));
+       assertTrue(verifyLogMessageExists("Recompile skipped for dev-sample-proj since earlier compilation is successful", 10000));
 
        // modify MicroProfile umbrella dependency in pom.xml
        replaceString("<dependency>\n"

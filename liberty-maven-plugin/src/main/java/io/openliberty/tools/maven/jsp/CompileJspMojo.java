@@ -1,5 +1,5 @@
 /**
- * (C) Copyright IBM Corporation 2017, 2023.
+ * (C) Copyright IBM Corporation 2017, 2025.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,16 @@ package io.openliberty.tools.maven.jsp;
 
 import java.io.File;
 import java.text.MessageFormat;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -32,12 +38,13 @@ import org.codehaus.plexus.util.xml.Xpp3Dom;
 
 import io.openliberty.tools.ant.jsp.CompileJSPs;
 import io.openliberty.tools.common.plugins.util.PluginExecutionException;
+import io.openliberty.tools.common.plugins.util.ServerFeatureUtil.FeaturesPlatforms;
 import io.openliberty.tools.maven.InstallFeatureSupport;
 
 /**
  * Compile the JSPs in the src/main/webapp folder.
  */
-@Mojo(name = "compile-jsp", defaultPhase = LifecyclePhase.COMPILE, requiresDependencyResolution = ResolutionScope.COMPILE)
+@Mojo(name = "compile-jsp", defaultPhase = LifecyclePhase.COMPILE, requiresDependencyResolution = ResolutionScope.COMPILE, threadSafe = true)
 public class CompileJspMojo extends InstallFeatureSupport {
 
     /**
@@ -79,9 +86,15 @@ public class CompileJspMojo extends InstallFeatureSupport {
         compile.setDestdir(new File(getProject().getBuild().getOutputDirectory()));
         compile.setTempdir(new File(getProject().getBuild().getDirectory()));
         compile.setTimeout(timeout);
-
+        // put toolchain jdk into environment variables
+        Map<String, String> envVars = getToolchainEnvVar();
+        if(ObjectUtils.isNotEmpty(envVars)) {
+            compile.setEnvironmentVariables(envVars);
+        }
         // don't delete temporary server dir
         compile.setCleanup(false);
+
+        boolean sourceSet = false;
 
         List<Plugin> plugins = getProject().getBuildPlugins();
         for (Plugin plugin : plugins) {
@@ -89,9 +102,20 @@ public class CompileJspMojo extends InstallFeatureSupport {
                 Object config = plugin.getConfiguration();
                 if (config instanceof Xpp3Dom) {
                     Xpp3Dom dom = (Xpp3Dom) config;
-                    Xpp3Dom val = dom.getChild("source");
-                    if (val != null) {
-                        compile.setSource(val.getValue());
+                    Xpp3Dom child = dom.getChild("release");
+                    if (child != null && child.getValue() != null) {
+                        String value = child.getValue();
+                        getLog().debug("compile-jsp using maven.compiler.release value: "+value+" for javaSourceLevel.");
+                        compile.setSource(value);
+                        sourceSet = true;    
+                    } else {
+                        child = dom.getChild("source");
+                        if (child != null && child.getValue() != null) {
+                            String value = child.getValue();
+                            getLog().debug("compile-jsp using maven.compiler.source value: "+value+" for javaSourceLevel.");
+                            compile.setSource(value);
+                            sourceSet = true;    
+                        }
                     }
                 }
                 break;
@@ -103,6 +127,26 @@ public class CompileJspMojo extends InstallFeatureSupport {
                     if (val != null) {
                         compile.setSrcdir(new File(val.getValue()));
                     }
+                }
+            }
+        }
+
+        if (!sourceSet) {
+            // look for Maven properties
+            Properties props = getProject().getProperties();
+            if (props.containsKey("maven.compiler.release")) {
+                String value = props.getProperty("maven.compiler.release");
+                if (value != null) {
+                    getLog().debug("compile-jsp using maven.compiler.release value: "+value+" for javaSourceLevel.");
+                    compile.setSource(value);
+                    sourceSet = true;
+                }  
+            } else if (props.containsKey("maven.compiler.source")) {
+                String value = props.getProperty("maven.compiler.source");
+                if (value != null) {
+                    getLog().debug("compile-jsp using maven.compiler.source value: "+value+" for javaSourceLevel.");
+                    compile.setSource(value);
+                    sourceSet = true;
                 }
             }
         }
@@ -132,9 +176,11 @@ public class CompileJspMojo extends InstallFeatureSupport {
         compile.setClasspath(classpathStr);
 
         if(initialize()) {
-            Set<String> installedFeatures;
+            Set<String> installedFeatures = new HashSet<String>();
             try {
-                installedFeatures = getSpecifiedFeatures(null);
+            	FeaturesPlatforms fp = getSpecifiedFeatures(null);
+            	if (fp!=null)
+            		installedFeatures = fp.getFeatures();
             } catch (PluginExecutionException e) {
                 throw new MojoExecutionException("Error getting the list of specified features.", e);
             }
@@ -142,9 +188,14 @@ public class CompileJspMojo extends InstallFeatureSupport {
             //Set JSP Feature Version
             setJspVersion(compile, installedFeatures);
 
-            //Removing jsp features at it is already set at this point 
-            installedFeatures.remove("jsp-2.3");
-            installedFeatures.remove("jsp-2.2");
+            //Removing jsp and pages features as the jspVersion is already set at this point 
+            Iterator<String> it = installedFeatures.iterator();
+            while (it.hasNext()) {
+                String nextItem = it.next();
+                if (nextItem.startsWith("jsp-") || nextItem.startsWith("pages-")) {
+                    it.remove();
+                }
+            }
             
             if(installedFeatures != null && !installedFeatures.isEmpty()) {
                 compile.setFeatures(installedFeatures.toString().replace("[", "").replace("]", ""));
@@ -161,8 +212,8 @@ public class CompileJspMojo extends InstallFeatureSupport {
         }
         else {
             for (String currentFeature : installedFeatures) {
-                if(currentFeature.startsWith("jsp-")) {
-                    String version = currentFeature.replace("jsp-", "");
+                if(currentFeature.startsWith("jsp-") || currentFeature.startsWith("pages-")) {
+                    String version = currentFeature.substring(currentFeature.indexOf("-")+1);
                     compile.setJspVersion(version);
                     break;
                 }

@@ -61,7 +61,7 @@ public class MultipleLibertyModulesTest extends BaseMultiModuleTest {
 
       writer = new BufferedWriter(new OutputStreamWriter(stdin));
 
-      assertTrue(getLogTail(), verifyLogMessageExists("Found multiple independent modules in the Reactor build order: [ear1, ear2]", 30000));
+      assertTrue(getLogTail(), verifyLogMessageExists("Found multiple independent modules in the Reactor build order: [ear1, ear2, ear-skinny-modules]", 30000));
 
    }
 

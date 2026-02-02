@@ -116,7 +116,10 @@ public class BaseGenerateFeaturesTest {
         writer = new BufferedWriter(new OutputStreamWriter(stdin));
         // wait for process to finish max 20 seconds
         process.waitFor(20, TimeUnit.SECONDS);
-        assertFalse(process.isAlive());
+        if (process.isAlive()) {
+            process.waitFor(20, TimeUnit.SECONDS);
+        }
+        assertFalse("The process for command "+command+" did not finish in 40 seconds.", process.isAlive());
 
         // save and print process output
         Path path = logFile.toPath();
@@ -200,12 +203,14 @@ public class BaseGenerateFeaturesTest {
         }
 
         // read configuration xml file
-        DocumentBuilderFactory docBuilderFactory = DocumentBuilderFactory.newInstance();
-        docBuilderFactory.setIgnoringComments(true);
-        docBuilderFactory.setCoalescing(true);
-        docBuilderFactory.setIgnoringElementContentWhitespace(true);
-        docBuilderFactory.setValidating(false);
-        DocumentBuilder documentBuilder = docBuilderFactory.newDocumentBuilder();
+        DocumentBuilderFactory inputBuilderFactory = DocumentBuilderFactory.newInstance();
+        inputBuilderFactory.setIgnoringComments(true);
+        inputBuilderFactory.setCoalescing(true);
+        inputBuilderFactory.setIgnoringElementContentWhitespace(true);
+        inputBuilderFactory.setValidating(false);
+        inputBuilderFactory.setFeature("http://apache.org/xml/features/nonvalidating/load-dtd-grammar", false); 
+        inputBuilderFactory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);    
+        DocumentBuilder documentBuilder = inputBuilderFactory.newDocumentBuilder();
         Document doc = documentBuilder.parse(configurationFile);
 
         XPath xPath = XPathFactory.newInstance().newXPath();

@@ -46,6 +46,8 @@ public class CompileJSPTest {
             inputBuilderFactory.setCoalescing(true);
             inputBuilderFactory.setIgnoringElementContentWhitespace(true);
             inputBuilderFactory.setValidating(false);
+            inputBuilderFactory.setFeature("http://apache.org/xml/features/nonvalidating/load-dtd-grammar", false); 
+            inputBuilderFactory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);    
             DocumentBuilder inputBuilder = inputBuilderFactory.newDocumentBuilder();
             Document inputDoc=inputBuilder.parse(input);
             
@@ -64,6 +66,17 @@ public class CompileJSPTest {
             Assert.assertTrue("ejbLite-3.2 <feature/> found ==>", features.contains("ejbLite-3.2")); 
             Assert.assertTrue("mongodb-2.0 <feature/> found ==>", features.contains("mongodb-2.0"));
             Assert.assertTrue("jsp-2.3 <feature/> found ==>", features.contains("jsp-2.3"));
+
+            // parse input XML Document
+            String expression2 = "/server/jspEngine";        
+            nodes = (NodeList) xPath.compile(expression2).evaluate(inputDoc, XPathConstants.NODESET);
+            Assert.assertEquals("Number of <jspEngine/> elements ==>", 1, nodes.getLength());
+
+            if (nodes.item(0) instanceof Element) {
+                Element child = (Element) nodes.item(0);
+                String nodeValue = child.getAttribute("javaSourceLevel");
+                Assert.assertTrue("Unexpected javaSourceLevel ==>"+nodeValue, nodeValue.equals("8"));
+            }
         }
     }
 }

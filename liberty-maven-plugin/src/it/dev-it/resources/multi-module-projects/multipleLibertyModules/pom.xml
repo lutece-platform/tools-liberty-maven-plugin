@@ -13,8 +13,12 @@
 
     <modules>
         <module>jar</module>
+        <module>ejb</module>
         <module>war</module>
+        <module>war2</module>
         <module>ear1</module>
         <module>ear2</module>
+        <module>rar</module>
+        <module>ear-skinny-modules</module>
     </modules>
 </project>

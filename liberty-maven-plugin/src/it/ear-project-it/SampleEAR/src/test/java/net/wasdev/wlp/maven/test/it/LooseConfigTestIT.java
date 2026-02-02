@@ -52,6 +52,8 @@ public class LooseConfigTestIT {
             inputBuilderFactory.setCoalescing(true);
             inputBuilderFactory.setIgnoringElementContentWhitespace(true);
             inputBuilderFactory.setValidating(false);
+            inputBuilderFactory.setFeature("http://apache.org/xml/features/nonvalidating/load-dtd-grammar", false); 
+            inputBuilderFactory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);    
             DocumentBuilder inputBuilder = inputBuilderFactory.newDocumentBuilder();
             Document inputDoc=inputBuilder.parse(input);
             
@@ -83,9 +85,9 @@ public class LooseConfigTestIT {
             nodes = (NodeList) xPath.compile(expression).evaluate(inputDoc, XPathConstants.NODESET);
             assertEquals("Number of <archive/> element ==>", 5, nodes.getLength());
             // test runtime scope dependency to be included in the ?WEB-INF/lib
-            assertEquals("file targetInArchive attribute value", "/WEB-INF/lib/commons-io-2.11.0.jar", 
+            assertEquals("file targetInArchive attribute value", "/WEB-INF/lib/commons-io-2.14.0.jar", 
                     nodes.item(2).getAttributes().getNamedItem("targetInArchive").getNodeValue());
-            assertEquals("file targetInArchive attribute value", "/WEB-INF/lib/commons-io-2.11.0.jar", 
+            assertEquals("file targetInArchive attribute value", "/WEB-INF/lib/commons-io-2.14.0.jar", 
                     nodes.item(4).getAttributes().getNamedItem("targetInArchive").getNodeValue());
         }
     }

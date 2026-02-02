@@ -1,5 +1,5 @@
 /**
- * (C) Copyright IBM Corporation 2021, 2023.
+ * (C) Copyright IBM Corporation 2021, 2024.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -43,6 +43,7 @@ import io.openliberty.tools.common.plugins.util.BinaryScannerUtil;
 import static io.openliberty.tools.common.plugins.util.BinaryScannerUtil.*;
 import io.openliberty.tools.common.plugins.util.PluginExecutionException;
 import io.openliberty.tools.common.plugins.util.ServerFeatureUtil;
+import io.openliberty.tools.common.plugins.util.ServerFeatureUtil.FeaturesPlatforms;
 import io.openliberty.tools.maven.ServerFeatureSupport;
 
 /**
@@ -53,8 +54,8 @@ import io.openliberty.tools.maven.ServerFeatureSupport;
  * them in a new featureManager element in a new XML file in the source
  * config/dropins directory.
  */
-@Mojo(name = "generate-features")
-public class GenerateFeaturesMojo extends ServerFeatureSupport {
+@Mojo(name = "generate-features", threadSafe = true)
+public class GenerateFeaturesMojo extends PluginConfigSupport {
 
     public static final String FEATURES_FILE_MESSAGE = "The Liberty Maven Plugin has generated Liberty features necessary for your application in "
             + GENERATED_FEATURES_FILE_PATH;
@@ -116,7 +117,19 @@ public class GenerateFeaturesMojo extends ServerFeatureSupport {
         ProjectDependencyGraph graph = session.getProjectDependencyGraph();
         List<MavenProject> upstreamProjects = new ArrayList<MavenProject>();
         if (graph != null) {
-            checkMultiModuleConflicts(graph);
+        	
+        	// In a multi-module build, generate-features will only be run on one project (the farthest downstream). 
+        	// If this current project in the Maven Reactor is not that project or any of its upstream projects, skip it.  
+        	boolean skipJars = true;
+        	if("spring-boot-project".equals(getDeployPackages())) {
+        		skipJars = false;
+        	}
+        	List<MavenProject> relevantProjects = getRelevantMultiModuleProjects(graph, skipJars);
+        	if (!relevantProjects.contains(project)) {
+        		getLog().info("\nSkipping module " + project.getArtifactId() + " which is not configured for the generate-features goal.\n");
+        		return;
+        	}
+        	
             List<MavenProject> downstreamProjects = graph.getDownstreamProjects(project, true);
             if (!downstreamProjects.isEmpty()) {
                 getLog().debug("Downstream projects: " + downstreamProjects);
@@ -254,9 +267,9 @@ public class GenerateFeaturesMojo extends ServerFeatureSupport {
             servUtil.setLowerCaseFeatures(false);
             // get set of user defined features so they can be omitted from the generated
             // file that will be written
-            Set<String> userDefinedFeatures = optimize ? existingFeatures
-                    : servUtil.getServerFeatures(configDirectory, serverXmlFile, new HashMap<String, File>(),
-                            generatedFiles);
+            FeaturesPlatforms fp = servUtil.getServerFeatures(configDirectory, serverXmlFile, new HashMap<String, File>(),
+                    generatedFiles);
+            Set<String> userDefinedFeatures = optimize ? existingFeatures : (fp !=null) ? fp.getFeatures(): new HashSet<String>();
             getLog().debug("User defined features:" + userDefinedFeatures);
             servUtil.setLowerCaseFeatures(true);
             if (userDefinedFeatures != null) {
@@ -319,23 +332,26 @@ public class GenerateFeaturesMojo extends ServerFeatureSupport {
         servUtil.setLowerCaseFeatures(false);
         // if optimizing, ignore generated files when passing in existing features to
         // binary scanner
-        Set<String> existingFeatures = servUtil.getServerFeatures(configDirectory, serverXmlFile,
+        FeaturesPlatforms fp = servUtil.getServerFeatures(configDirectory, serverXmlFile,
                 new HashMap<String, File>(), excludeGenerated ? generatedFiles : null); // pass generatedFiles to exclude them
-        if (existingFeatures == null) {
-            existingFeatures = new HashSet<String>();
-        }
         servUtil.setLowerCaseFeatures(true);
-        return existingFeatures;
+        if (fp == null) {
+            return new HashSet<String>();
+        }
+        return fp.getFeatures();
     }
 
     // returns the features specified in the generated-features.xml file
     private Set<String> getGeneratedFeatures(ServerFeatureUtil servUtil, File generatedFeaturesFile) {
         servUtil.setLowerCaseFeatures(false);
-        Set<String> genFeatSet = new HashSet<String>();
-        servUtil.getServerXmlFeatures(genFeatSet, configDirectory,
+        FeaturesPlatforms result = servUtil.getServerXmlFeatures(new FeaturesPlatforms(), configDirectory,
                 generatedFeaturesFile, null, null);
         servUtil.setLowerCaseFeatures(true);
-        return genFeatSet;
+        Set<String> features = new HashSet<String>();
+        if (result != null) {
+        	features = result.getFeatures();
+        }
+        return features;
     }
 
     /**
@@ -357,22 +373,6 @@ public class GenerateFeaturesMojo extends ServerFeatureSupport {
                     + ".jar configured in your pom.xml.",
                     e);
         }
-    }
-
-    /*
-     * Return specificFile if it exists; otherwise return the file with the requested fileName from the 
-     * configDirectory, but only if it exists. Null is returned if the file does not exist in either location.
-     */
-    private File findConfigFile(String fileName, File specificFile) {
-        if (specificFile != null && specificFile.exists()) {
-            return specificFile;
-        }
-
-        File f = new File(configDirectory, fileName);
-        if (configDirectory != null && f.exists()) {
-            return f;
-        }
-        return null;
     }
 
     private ServerConfigXmlDocument getServerXmlDocFromConfig(File serverXml) {

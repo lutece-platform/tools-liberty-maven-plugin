@@ -1,5 +1,5 @@
 /**
- * (C) Copyright IBM Corporation 2016, 2023.
+ * (C) Copyright IBM Corporation 2016, 2025.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.text.MessageFormat;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -45,12 +44,9 @@ import io.openliberty.tools.maven.utils.SpringBootUtil;
 import io.openliberty.tools.common.plugins.config.ApplicationXmlDocument;
 import io.openliberty.tools.common.plugins.config.LooseApplication;
 import io.openliberty.tools.common.plugins.config.LooseConfigData;
-import io.openliberty.tools.common.plugins.config.ServerConfigDocument;
 import io.openliberty.tools.common.plugins.util.DevUtil;
-import io.openliberty.tools.common.plugins.util.InstallFeatureUtil;
-import io.openliberty.tools.common.plugins.util.InstallFeatureUtil.ProductProperties;
 import io.openliberty.tools.common.plugins.util.OSUtil;
-import io.openliberty.tools.common.plugins.util.PluginExecutionException;
+import io.openliberty.tools.common.plugins.util.ServerStatusUtil;
 
 /**
  * Support for installing and deploying applications to a Liberty server.
@@ -376,17 +372,22 @@ public abstract class DeployMojoSupport extends LooseAppSupport {
                     case "war":
                         Element warArchive = looseEar.addWarModule(dependencyProject, artifact,
                                         getWarSourceDirectory(dependencyProject));
-                        if (looseEar.isEarSkinnyWars()) {
+                        if (looseEar.isEarSkinnyWars() || looseEar.isEarSkinnyModules()) {
                             // add embedded lib only if they are not a compile dependency in the ear
                             // project.
-                            addSkinnyWarLib(warArchive, dependencyProject, looseEar);
+                            addSkinnyArtifactLib(warArchive, dependencyProject, looseEar);
                         } else {
                             addEmbeddedLib(warArchive, dependencyProject, looseEar, "/WEB-INF/lib/");
                         }
                         break;
                     case "rar":
                         Element rarArchive = looseEar.addRarModule(dependencyProject, artifact);
-                        addEmbeddedLib(rarArchive, dependencyProject, looseEar, "/");
+                        // rar dependencies should be removed in case of skinny modules
+                        if (looseEar.isEarSkinnyModules()) {
+                            addSkinnyArtifactLib(rarArchive, dependencyProject, looseEar);
+                        }else {
+                            addEmbeddedLib(rarArchive, dependencyProject, looseEar, "/");
+                        }
                         break;
                     default:
                         // use the artifact from local .m2 repo
@@ -407,11 +408,7 @@ public abstract class DeployMojoSupport extends LooseAppSupport {
     }
 
     private boolean shouldValidateAppStart() throws MojoExecutionException {
-        try {
-            return new File(serverDirectory.getCanonicalPath()  + "/workarea/.sRunning").exists();
-        } catch (IOException ioe) {
-            throw new MojoExecutionException("Could not get the server directory to determine the state of the server.");
-        }
+        return ServerStatusUtil.isServerRunning(installDirectory, outputDirectory, serverName);
     }
 
     protected void verifyAppStarted(String appFile) throws MojoExecutionException {
@@ -419,17 +416,15 @@ public abstract class DeployMojoSupport extends LooseAppSupport {
             String appName = appFile.substring(0, appFile.lastIndexOf('.'));
             if (getAppsDirectory().equals("apps")) {
 
-                File serverXML = new File(serverDirectory, "server.xml");
-
                 try {
-                    Map<String, File> libertyDirPropertyFiles = getLibertyDirectoryPropertyFiles();
-                    CommonLogger logger = CommonLogger.getInstance(getLog());
+                    File serverXML = new File(serverDirectory, "server.xml");
+
+                    CommonLogger logger = new CommonLogger(getLog());
                     setLog(logger.getLog());
-                    ServerConfigDocument.getInstance(logger, serverXML, configDirectory,
-                            bootstrapPropertiesFile, combinedBootstrapProperties, serverEnvFile, false, libertyDirPropertyFiles);
+                    scd = getServerConfigDocument(logger, serverXML);
 
                     //appName will be set to a name derived from appFile if no name can be found.
-                    appName = ServerConfigDocument.findNameForLocation(appFile);
+                    appName = scd.findNameForLocation(appFile);
                 } catch (Exception e) {
                     getLog().warn(e.getLocalizedMessage());
                     getLog().debug(e);
@@ -512,9 +507,17 @@ public abstract class DeployMojoSupport extends LooseAppSupport {
         }
     }
 
-    private void addSkinnyWarLib(Element parent, MavenProject warProject, LooseEarApplication looseEar) throws MojoExecutionException, IOException {
-        Set<Artifact> artifacts = warProject.getArtifacts();
-        getLog().debug("Number of compile dependencies for " + warProject.getArtifactId() + " : " + artifacts.size());
+    /**
+     * used for war and rar to add jar files to lib folder
+     * @param parent
+     * @param artifactProject
+     * @param looseEar
+     * @throws MojoExecutionException
+     * @throws IOException
+     */
+    private void addSkinnyArtifactLib(Element parent, MavenProject artifactProject, LooseEarApplication looseEar) throws MojoExecutionException, IOException {
+        Set<Artifact> artifacts = artifactProject.getArtifacts();
+        getLog().debug("Number of compile dependencies for " + artifactProject.getArtifactId() + " : " + artifacts.size());
 
         for (Artifact artifact : artifacts) {
             // skip the embedded library if it is included in the lib directory of the ear

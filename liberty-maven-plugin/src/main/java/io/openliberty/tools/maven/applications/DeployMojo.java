@@ -1,5 +1,5 @@
 /**
- * (C) Copyright IBM Corporation 2014, 2023.
+ * (C) Copyright IBM Corporation 2014, 2024.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,13 @@ import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
 
+import io.openliberty.tools.maven.utils.CommonLogger;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -35,7 +37,6 @@ import org.apache.maven.project.MavenProject;
 import io.openliberty.tools.maven.utils.SpringBootUtil;
 import io.openliberty.tools.common.plugins.config.ApplicationXmlDocument;
 import io.openliberty.tools.common.plugins.config.LooseConfigData;
-import io.openliberty.tools.common.plugins.config.ServerConfigDocument;
 import io.openliberty.tools.common.plugins.util.DevUtil;
 
 /**
@@ -45,7 +46,7 @@ import io.openliberty.tools.common.plugins.util.DevUtil;
  * dependencies with scope compile + system + runtime. 
  * Provided scope transitive dependencies are not included by default (built-in maven behavior).
  */
-@Mojo(name = "deploy", requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME)
+@Mojo(name = "deploy", requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME, threadSafe = true)
 public class DeployMojo extends DeployMojoSupport {
     
     @Override
@@ -73,7 +74,6 @@ public class DeployMojo extends DeployMojoSupport {
 
         // update target server configuration
         copyConfigFiles();
-        exportParametersToXml();
         
         boolean installDependencies = false;
         boolean installProject = false;
@@ -116,8 +116,14 @@ public class DeployMojo extends DeployMojoSupport {
         }
 
         File fatArchiveSrc = SpringBootUtil.getSpringBootUberJAR(project, getLog());
-        
-        // Check if the archiveSrc is executable and then invokeSpringUtilCommand. 
+        File serverXML = new File(serverDirectory, "server.xml");
+
+
+        CommonLogger logger = new CommonLogger(getLog());
+        setLog(logger.getLog());
+        getServerConfigDocument(logger, serverXML);
+
+        // Check if the archiveSrc is executable and then invokeSpringUtilCommand.
         if (io.openliberty.tools.common.plugins.util.SpringBootUtil.isSpringBootUberJar(fatArchiveSrc)) {
             File thinArchiveTarget = getThinArchiveTarget(fatArchiveSrc);
             File libIndexCacheTarget = getLibIndexCacheTarget();
@@ -146,11 +152,16 @@ public class DeployMojo extends DeployMojoSupport {
             appsDir = new File(rootDirectory, appsDirName);        
         } else if ("dropins".equals(appsDirName)) {
             appsDir = new File(rootDirectory, appsDirName+"/spring");         
-        }       
-        archiveTarget = new File(appsDir, "thin-" + archiveSrc.getName());
+        }
+
+        if (scd != null && scd.getSpringBootAppNodeLocation().isPresent()) {
+            archiveTarget = new File(appsDir, scd.getSpringBootAppNodeLocation().get());
+        } else {
+            archiveTarget = new File(appsDir, "thin-" + archiveSrc.getName());
+        }
         return archiveTarget;
     }
-    
+
     private File getLibIndexCacheTarget() {
         // Set shared directory ${installDirectory}/usr/shared/
         File sharedDirectory = new File(userDirectory, "shared");
@@ -172,6 +183,7 @@ public class DeployMojo extends DeployMojoSupport {
         for (Artifact artifact : artifacts) {
             // skip if not an application type supported by Liberty
             if (!isSupportedType(artifact.getType())) {
+                getLog().debug("Skipping install of dependency "+artifact.getArtifactId()+" with unsupported type: "+artifact.getType());
                 continue;
             }
             // skip assemblyArtifact if specified as a dependency
@@ -325,7 +337,7 @@ public class DeployMojo extends DeployMojoSupport {
     private void cleanupPreviousExecution() {
         if (ApplicationXmlDocument.getApplicationXmlFile(serverDirectory).exists()) {
             ApplicationXmlDocument.getApplicationXmlFile(serverDirectory).delete();
-            ServerConfigDocument.markInstanceStale();
+            scd = null;  // force reinitialization of ServerConfigDocument
         }
     }
 

@@ -1,4 +1,4 @@
-package net.wasdev.wlp.maven.test.servlet.it;
+package net.wasdev.wlp.test.servlet.it;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -54,6 +54,8 @@ public class ServerConfigPropertiesTest {
     @BeforeClass
     public static void setup() throws Exception {
         factory = DocumentBuilderFactory.newInstance();
+        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-dtd-grammar", false); 
+        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);    
         builder = factory.newDocumentBuilder();
 
         xpathFactory = XPathFactory.newInstance();
@@ -123,13 +125,12 @@ public class ServerConfigPropertiesTest {
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            s.close();
+        	if (s != null) s.close();
         }
 
         //Check app name/appsDir resolved correctly during create, deploy, and start
         Assert.assertTrue("Found duplicate application message in console output", duplicateMatches.size() == 0);
-        Assert.assertEquals("appsDirMessage size: " + appDirMatches.size(), 1, appDirMatches.size());
-        Assert.assertTrue("Did not find appsDirectory message in console output", appDirMatches.size() == 1);
+        Assert.assertEquals("appsDirMessage size: " + appDirMatches.size(), 3, appDirMatches.size()); // once for each goal - create, deploy and start
         Assert.assertTrue("Did not find app install message in console output", appInstalledMatches.size() == 1);
 
         String appMessage = appInstalledMatches.get(0);

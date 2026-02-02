@@ -1,5 +1,5 @@
 /**
- * (C) Copyright IBM Corporation 2014, 2023.
+ * (C) Copyright IBM Corporation 2014, 2024.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import java.io.File;
 import java.io.IOException;
 import java.text.MessageFormat;
 
+import io.openliberty.tools.common.plugins.util.PluginExecutionException;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -29,7 +30,7 @@ import io.openliberty.tools.ant.ServerTask;
 /**
  * Dump diagnostic information from the server into an archive.
   */
-@Mojo(name = "dump", requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME)
+@Mojo(name = "dump", requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME, threadSafe = true)
 public class DumpServerMojo extends StartDebugMojoSupport {
 
     /**
@@ -90,6 +91,11 @@ public class DumpServerMojo extends StartDebugMojoSupport {
         serverTask.setOperation("dump");
         serverTask.setArchive(archive);
         serverTask.setInclude(generateInclude());
+        try {
+            checkAndEnablePosixRules(serverTask);
+        } catch (PluginExecutionException e) {
+            throw new MojoExecutionException("Error loading server properties from Liberty server directory.", e);
+        }
         serverTask.execute();
     }
     

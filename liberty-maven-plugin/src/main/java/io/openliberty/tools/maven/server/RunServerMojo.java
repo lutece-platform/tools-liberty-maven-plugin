@@ -1,5 +1,5 @@
 /**
- * (C) Copyright IBM Corporation 2014, 2023.
+ * (C) Copyright IBM Corporation 2014, 2025.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ import io.openliberty.tools.ant.ServerTask;
 /**
  * Start a liberty server
  */
-@Mojo(name = "run", requiresDependencyCollection = ResolutionScope.COMPILE_PLUS_RUNTIME, requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME)
+@Mojo(name = "run", requiresDependencyCollection = ResolutionScope.COMPILE_PLUS_RUNTIME, requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME, threadSafe = true)
 public class RunServerMojo extends PluginConfigSupport {
 
     /**
@@ -65,7 +65,18 @@ public class RunServerMojo extends PluginConfigSupport {
         boolean hasDownstreamProjects = false;
         ProjectDependencyGraph graph = session.getProjectDependencyGraph();
         if (graph != null) {
-            checkMultiModuleConflicts(graph);
+        	
+        	// In a multi-module build, the run server goal will only be run on one project (the farthest downstream) and compile will
+        	// be run on any relative upstream projects. If this current project in the Maven Reactor is not one of those projects, skip it.  
+        	boolean skipJars = true;
+        	if("spring-boot-project".equals(getDeployPackages())) {
+        		skipJars = false;
+        	}
+        	List<MavenProject> relevantProjects = getRelevantMultiModuleProjects(graph, skipJars);
+        	if (!relevantProjects.contains(project)) {
+        		getLog().info("\nSkipping module " + project.getArtifactId() + " which is not included in this invocation of the run goal.\n");
+        		return;
+        	}
 
             List<MavenProject> downstreamProjects = graph.getDownstreamProjects(project, true);
             if (!downstreamProjects.isEmpty()) {
@@ -99,6 +110,11 @@ public class RunServerMojo extends PluginConfigSupport {
         }
 
         if (!looseApplication) {
+        	
+         // no need to repackage war/jar if deploy package is specified as spring-boot-project
+         if ("spring-boot-project".equals(getDeployPackages())) {
+              getLog().info("Skipping project repackaging as deploy package is configured as spring-boot-project");
+         }else {
             try {
                 switch (projectPackaging) {
                     case "war":
@@ -130,9 +146,9 @@ public class RunServerMojo extends PluginConfigSupport {
                     getLog().warn("The looseApplication parameter was set to false for the module with artifactId " + project.getArtifactId() + ". Ensure that all modules use the same value for the looseApplication parameter by including -DlooseApplication=false in the Maven command for your multi module project.");
                     throw e;
                 }
+              }
             }
         }
-
         // Return if Liberty should not be run on this module
         if (hasDownstreamProjects) {
             return;
@@ -153,5 +169,4 @@ public class RunServerMojo extends PluginConfigSupport {
         serverTask.setOperation("run");       
         serverTask.execute();
     }
-
 }
