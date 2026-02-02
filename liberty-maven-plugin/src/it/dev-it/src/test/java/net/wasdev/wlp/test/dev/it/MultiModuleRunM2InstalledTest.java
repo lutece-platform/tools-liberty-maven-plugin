@@ -55,7 +55,7 @@ public class MultiModuleRunM2InstalledTest extends BaseMultiModuleTest {
 
       // run goal should purge the jar module from m2, so that the war module will show a failure due to the missing dependency.
       // i.e. it should not find the jar dependency from m2
-      startProcess(null, false, "mvn io.openliberty.tools:liberty-maven-plugin:"+System.getProperty("mavenPluginVersion")+":", false);
+      startProcess(null, false, "mvn fr.paris.lutece.tools:liberty-maven-plugin:"+System.getProperty("mavenPluginVersion")+":", false);
       
       assertTrue(getLogTail(logFile), verifyLogMessageExists("package io.openliberty.guides.multimodules.lib does not exist", 25000));
       

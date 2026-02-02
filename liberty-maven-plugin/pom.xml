@@ -9,6 +9,7 @@
         <version>3.12.1-SNAPSHOT</version>
     </parent>
 
+    <groupId>fr.paris.lutece.tools</groupId>
     <artifactId>liberty-maven-plugin</artifactId>
     <packaging>maven-plugin</packaging>
     <name>liberty-maven-plugin</name>
@@ -39,7 +40,7 @@
         <snapshotRepository>
             <uniqueVersion>true</uniqueVersion>
             <id>luteceNextDevsSnapshot</id>
-            <url>https://piclutece-p30.apps.paris.mdp/nexuspr/content/repositories/lutece_nextdevs_snapshots_repository</url>
+            <url>https://dev.lutece.paris.fr/nexus/content/repositories/lutece_nextdevs_snapshots_repository</url>
         </snapshotRepository>
     </distributionManagement>
    

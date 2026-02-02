@@ -56,8 +56,10 @@ import io.openliberty.tools.maven.utils.ExecuteMojoUtil;
 
 public abstract class ServerFeatureSupport extends BasicSupport {
 	
-    private static final String LIBERTY_MAVEN_PLUGIN_GROUP_ID = "io.openliberty.tools";
-    private static final String LIBERTY_MAVEN_PLUGIN_ARTIFACT_ID = "liberty-maven-plugin";
+   // private static final String LIBERTY_MAVEN_PLUGIN_GROUP_ID = "io.openliberty.tools";
+    private static final String LIBERTY_MAVEN_PLUGIN_GROUP_ID = "fr.paris.lutece.tools";
+
+	private static final String LIBERTY_MAVEN_PLUGIN_ARTIFACT_ID = "liberty-maven-plugin";
 
     private static final String LIBERTY_CONFIG_MAVEN_PROPS = "(^liberty\\.(env|jvm|bootstrap|var|defaultVar)\\.).+";
     private static final Pattern pattern = Pattern.compile(LIBERTY_CONFIG_MAVEN_PROPS);

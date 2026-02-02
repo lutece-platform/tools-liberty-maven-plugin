@@ -47,7 +47,7 @@ public class MultipleLibertyModulesTest extends BaseMultiModuleTest {
 
    @Test
    public void multipleLibertyModulesTest() throws Exception {
-      String mavenPluginCommand = "mvn io.openliberty.tools:liberty-maven-plugin:"+System.getProperty("mavenPluginVersion")+":dev";
+      String mavenPluginCommand = "mvn fr.paris.lutece.tools:liberty-maven-plugin:"+System.getProperty("mavenPluginVersion")+":dev";
 
       StringBuilder command = new StringBuilder(mavenPluginCommand);
       ProcessBuilder builder = buildProcess(command.toString());
