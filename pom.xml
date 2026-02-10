@@ -31,12 +31,13 @@
         </developer>
     </developers>
 
-    <scm>
-        <connection>scm:git:git@github.com:OpenLiberty/ci.maven.git</connection>
-        <developerConnection>scm:git:git@github.com:OpenLiberty/ci.maven.git</developerConnection>
-        <url>git@github.com:OpenLiberty/ci.maven.git</url>
-        <tag>HEAD</tag>
-    </scm>
+
+<scm>
+        <connection>scm:git:https://github.com/lutece-platform/tools-liberty-maven-plugin.git</connection>
+        <developerConnection>scm:git:https://github.com/lutece-platform/tools-liberty-maven-plugin.git</developerConnection>
+        <url>https://github.com/lutece-platform/tools-liberty-maven-plugin.git</url>
+      <tag>HEAD</tag>
+  </scm>
 
     <distributionManagement>
         <snapshotRepository>
