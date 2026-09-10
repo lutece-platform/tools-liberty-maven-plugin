@@ -257,73 +257,33 @@ public abstract class DeployMojoSupport extends LooseAppSupport {
 
         LooseLuteceApplication looseLutece = new LooseLuteceApplication(proj, config, getLog());
            
-        if(looseLutece.isExploded()) {
-        	
-            runExplodedLuteceMojo("exploded-webapp");
-            ////////////////////////////////////
-            // The order matters and establishes a well-defined precedence as documented: https://www.ibm.com/docs/en/was-liberty/base?topic=liberty-loose-applications
-            //
-            // ".. If you have two files with the same target location in the loose archive, the first occurrence of the file is used.
-            // The first occurrence is based on a top-down approach to reading the elements of the loose application configuration file..."
-            //
-            // Because the flow is so complicated we may have cases where we are applying filtering where one location contains a filtered
-            // version of a file and another potentially has an unfiltered one, and in such cases we need to make sure the filtered version takes
-            // precedence.
-            //
-            // In certain cases, like step 1. below we avoid writing a location into the loose app XML because we don't want an unfiltered
-            // to take precedence and prevent the filtered value from taking effect.
-            //
-            ////////////////////////////////////
+        // Don't especially need to run it exactly here, but in debugger we can see what we have
+        runExplodedLuteceMojo("exploded-lite");
 
-            // 1. Add source paths for the source dir and non-filtered web resources.  Since there could be overlap, i.e. the source dir
-            // could also be configured as a web resource, we combine these into a single step.
-            //
-            // We'll already have the runtime application monitor watching for file changes, and we don't want to set up the more expensive
-            // dev mode type of watching.
-            looseLutece.addNonFilteredSourceAndWebResourcesPaths();
+        ////////////////////////////////////
+        // The order matters and establishes a well-defined precedence as documented:
+        // https://www.ibm.com/docs/en/was-liberty/base?topic=liberty-loose-applications
+        //
+        // ".. If you have two files with the same target location in the loose archive, the first occurrence of the
+        // file is used. The first occurrence is based on a top-down approach to reading the elements of the loose
+        // application configuration file..."
+        ////////////////////////////////////
 
-            // 2. target classes - this allows non-deploy mode cases (e.g. non-deploy cases such as `mvn compile` or m2e update in Eclipse)
-            // to pick up Java class updates upon compilation.
-            looseLutece.addOutputDir(looseLutece.getDocumentRoot(), new File(proj.getBuild().getOutputDirectory()), "/WEB-INF/classes");
+        // 1. configuration directories, so that a local override takes precedence over the packaged files
+        looseLutece.addDefaultConfigurationDirPaths();
 
-            //////////////////////////
-            // 3. Finally add the exploded dir
-            //
-            // In order to dynamically reflect changes in non-filtered web app source, this needs to go AFTER the unfiltered source entries above, since 
-            // changes in these un-monitored directories will NOT cause a new 'exploded' goal execution, so the updated content in the unmonitored source will
-            // now be newer than the stale data in the webapp dir folder.
-            //
-            // Might need more consideration in special case where filteringDD is disabled but also a webResources resource is set up for the war source dir (to get non-DD stuff like beans.xml).
-            //
-            // Perhaps this is a special case we can document "don't do this"..or perhaps the war source dir (default = webapp) should ALWAYS be monitored, and only extra web resources directories should
-            // be subject to the test of monitoring only if filtering is enabled.
-            //////////////////////////
-            looseLutece.addOutputDir(looseLutece.getDocumentRoot(), looseLutece.getWebAppDirectory(), "/");
-        }else {	
-        	// Don't especially need to run it exactly here, but in debugger we can see what we have
-        	runExplodedLuteceMojo("exploded-lite");
-            // 1.
-            looseLutece.addDefaultConfigurationDirPaths();
-            // 2.
-        	looseLutece.addSourceDir();
-        	 // 4. target classes - this allows non-deploy mode cases (e.g. non-deploy cases such as `mvn compile` or m2e update in Eclipse)
-            // to pick up Java class updates upon compilation.
-            looseLutece.addOutputDir(looseLutece.getDocumentRoot(), new File(proj.getBuild().getOutputDirectory()), "/WEB-INF/classes");
+        // 2. the webapp sources, mapped live so that template and static resource edits are picked up immediately
+        looseLutece.addSourceDir();
 
+        // 3. target classes - this allows non-deploy mode cases (e.g. non-deploy cases such as `mvn compile` or m2e
+        // update in Eclipse) to pick up Java class updates upon compilation.
+        looseLutece.addOutputDir(looseLutece.getDocumentRoot(), new File(proj.getBuild().getOutputDirectory()), "/WEB-INF/classes");
 
-            // 5. retrieve the directories defined as resources in the maven war plugin
-            //
-            //  - It would be cleaner to avoid duplicating the source dir in the case it also appears as a web resource, like we do in the exploded case.
-            // If this ever became an issue we could combine this with step 1. above.  However at the moment it doesn't seem worth the risk of making a change
-            // in such a key area.
-            looseLutece.addAllWebResourcesConfigurationPaths();
-            // 6. retrieves dependent library jar files
-            addEmbeddedLibLutece(looseLutece.getDocumentRoot(), proj, looseLutece, "/WEB-INF/lib/");
- 
-            //////////////////////////
-            // 7. Finally add the exploded dir
-            looseLutece.addOutputDir(looseLutece.getDocumentRoot(), looseLutece.getWebAppDirectory(), "/");           
-        }
+        // 4. dependent library jar files
+        addEmbeddedLibLutece(looseLutece.getDocumentRoot(), proj, looseLutece, "/WEB-INF/lib/");
+
+        // 5. finally the exploded dir, as the fallback for everything coming from the core, the plugins and the sites
+        looseLutece.addOutputDir(looseLutece.getDocumentRoot(), looseLutece.getWebAppDirectory(), "/");
         // add Manifest file
         File manifestFile = MavenProjectUtil.getManifestFile(proj, "lutece-maven-plugin");
         try {

@@ -18,10 +18,8 @@ package io.openliberty.tools.maven.applications;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.project.MavenProject;
@@ -43,7 +41,7 @@ public class LooseLuteceApplication extends LooseApplication {
 	protected final Path warSourceDirectory;
     /** The logger instance for this application. */
 	protected final Log log;
- 
+
 	/**
      * Initializes a new LooseLuteceApplication with the specified project, configuration, and log.
      *
@@ -57,27 +55,7 @@ public class LooseLuteceApplication extends LooseApplication {
 	    this.warSourceDirectory = getLuteceSourceDirectory(project);
 	    this.log = log;
 	}
-	/**
-     * Determines if the project is set up in an exploded format by checking for monitored directories.
-     *
-     * @param project the Maven project
-     * @return true if the project is in exploded format, false otherwise
-     */
-    public static boolean isExploded(MavenProject project) {
-    	  if (!getWebSourceDirectoriesToMonitor(project).isEmpty()) {
-             return true;
-         } else {
-             return false;
-         }
-    }  
-    /**
-     * Checks if the current project instance is in exploded format.
-     *
-     * @return true if the project is in exploded format, false otherwise
-     */
-    public boolean isExploded() {
-    	return isExploded(project);
-    }
+
     /**
      * Adds the main source directory to the configuration.
      *
@@ -131,176 +109,20 @@ public class LooseLuteceApplication extends LooseApplication {
     }
 
     /**
-     * Retrieves a list of paths to web source directories that have filtering enabled.
+     * Returns the web source directories that dev mode must monitor in order to re-run the
+     * exploded goal.
+     *
+     * <p>Always empty for Lutece projects: the lutece-maven-plugin performs no Maven resource
+     * filtering, so the webapp sources can be mapped live in the loose application configuration
+     * and there is nothing to regenerate on change.
      *
      * @param project the Maven project
-     * @return a list of filtered web resource paths
+     * @return an empty list
      */
     public static List<Path> getWebSourceDirectoriesToMonitor(MavenProject project) {
-
-        Set<Path> filteredWebResources = getFilteredWebResourcesConfigurations(project);
-
-        List<Path> retVal = new ArrayList<Path>(filteredWebResources);
-
-        Path warSourceDir = getLuteceSourceDirectory(project);
-
-        // Need to add warSourceDir if DD filtering enabled, unless it's already in the list having its own webResources config
-        if (!filteredWebResources.contains(warSourceDir) && isFilteringDeploymentDescriptors(project)) {
-            retVal.add(warSourceDir);
-        }
-        return retVal;
+        return Collections.emptyList();
     }
 
-    /**
-     * Retrieves configurations for web resources with filtering enabled.
-     *
-     * @param project the Maven project
-     * @return a set of paths to filtered web resources
-     */
-    private static Set<Path> getFilteredWebResourcesConfigurations(MavenProject project) {
-        Set<Path> retVal = new HashSet<Path>();
-        Path baseDirPath = Paths.get(project.getBasedir().getAbsolutePath());
-
-        for (Xpp3Dom resource : getWebResourcesConfigurations(project)) {
-            Xpp3Dom dir = resource.getChild("directory");
-            Xpp3Dom filtering = resource.getChild("filtering");
-            if (dir != null && filtering != null) {
-                boolean filtered = Boolean.parseBoolean(filtering.getValue());
-                if (filtered) {
-                    retVal.add(baseDirPath.resolve(dir.getValue()));
-                }
-            }
-        }
-
-        return retVal;
-    }
-    
-    /**
-     * Checks if deployment descriptors are filtered.
-     *
-     * @param project the Maven project
-     * @return true if deployment descriptors are filtered, false otherwise
-     */
-    private static boolean isFilteringDeploymentDescriptors(MavenProject project) {
-        Boolean retVal = false;
-        Xpp3Dom dom = project.getGoalConfiguration("org.apache.maven.plugins", "lutece-maven-plugin", null, null);
-        if (dom != null) {
-            Xpp3Dom fdd = dom.getChild("filteringDeploymentDescriptors");
-            if (fdd != null) {
-                retVal = Boolean.parseBoolean(fdd.getValue());
-            }
-        }
-        return retVal;
-    }
-    /**
-     * Checks if deployment descriptors are filtered.
-     *
-     * @return true if deployment descriptors are filtered, false otherwise
-     */
-    public boolean isFilteringDeploymentDescriptors() {
-        return isFilteringDeploymentDescriptors(project);
-    }
-    
-    /**
-     * Get resource configuration values that have "directory" children elements from the Maven WAR plugin
-     * @param project the Maven project
-     * @return a List of war plugin resource elements that contain a "directory" child element or empty list if none are found
-     */
-    public static List<Xpp3Dom> getWebResourcesConfigurations(MavenProject project) {
-        List<Xpp3Dom> retVal = new ArrayList<Xpp3Dom>();
-        Xpp3Dom dom = null;
-        if(isLuteceApplication(project.getPackaging())) {
-        	//If lutece project
-        	dom = project.getGoalConfiguration("fr.paris.lutece.tools", "lutece-maven-plugin", null, null);
-        }
-        if (dom != null) {
-            Xpp3Dom web = dom.getChild("webResources");
-            if (web != null) {
-                Xpp3Dom resources[] = web.getChildren("resource");
-                if (resources != null) {
-                    for (int i = 0; i < resources.length; i++) {
-                        Xpp3Dom dir = resources[i].getChild("directory");
-                        // put dir in List
-                        if (dir != null) {
-                            retVal.add(resources[i]);
-                        }
-                    }
-                }
-            }
-        }
-        return retVal;
-    }
-
-    /**
-     * Adds all web resources configuration paths to the loose application configuration.
-     *
-     * @throws DOMException if there is an error manipulating XML configuration
-     * @throws IOException  if there is an error accessing file paths
-     */
-    public void addAllWebResourcesConfigurationPaths() throws DOMException, IOException {
-        Set<Path> handled = new HashSet<Path>();
-
-        Path baseDirPath = Paths.get(project.getBasedir().getAbsolutePath());
-
-        for (Xpp3Dom resource : getWebResourcesConfigurations(project)) {
-            Xpp3Dom dir = resource.getChild("directory");
-            Xpp3Dom target = resource.getChild("targetPath");
-            Path resolvedDir = baseDirPath.resolve(dir.getValue());
-            if (handled.contains(resolvedDir)) {
-                log.warn("Ignoring webResources dir: " + dir.getValue() + ", already have entry for path: " + resolvedDir);
-            } else {
-                String targetPath = "/";
-                if (target != null) {
-                    targetPath = "/" + target.getValue();
-                } 
-                addOutputDir(getDocumentRoot(), resolvedDir.toFile(), targetPath);
-                handled.add(resolvedDir);
-            }
-        }
-    }
-
-    /**
-     * Adds non-filtered source and web resources paths to the loose application configuration.
-     *
-     * @throws DOMException if there is an error manipulating XML configuration
-     * @throws IOException  if there is an error accessing file paths
-     */
-    public void addNonFilteredSourceAndWebResourcesPaths() throws DOMException, IOException {
-
-        // Write the source dir first, out of tradition/precedence
-        if (!isFilteringDeploymentDescriptors() && !getFilteredWebResourcesConfigurations(project).contains(warSourceDirectory)) {
-            addSourceDir();
-        }
-        
-        Path baseDirPath = Paths.get(project.getBasedir().getAbsolutePath());
-
-        Set<Path> handled = new HashSet<Path>(); // Use to warn for duplicate entries
-        for (Xpp3Dom resource : getWebResourcesConfigurations(project)) {
-            Xpp3Dom dir = resource.getChild("directory");
-            Xpp3Dom target = resource.getChild("targetPath");
-            Xpp3Dom filtering = resource.getChild("filtering");
-            Path resolvedDir = baseDirPath.resolve(dir.getValue());
-            if (resolvedDir.equals(warSourceDirectory)) {
-                // We have already decided to write the source dir or not above
-                continue;
-            }
-            if (filtering != null && Boolean.parseBoolean(filtering.getValue())) {
-                continue;
-            } else {
-                if (handled.contains(resolvedDir)) {
-                    log.warn("Ignoring webResources dir: " + dir.getValue() + ", already have entry for path: " + resolvedDir);
-                } else {
-                    String targetPath = "/";
-                     if (target != null) {
-                         targetPath = "/" + target.getValue();
-                     } 
-                     addOutputDir(getDocumentRoot(), resolvedDir.toFile(), targetPath);
-                     handled.add(resolvedDir);
-                }
-            }
-        }
-    }
-    
     /**
      * Retrieves the web application directory path.
      *

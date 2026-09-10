@@ -323,7 +323,6 @@ public class DevMojo extends LooseAppSupport {
     
     private boolean isExplodedLooseWarApp = false;
     private boolean isNewInstallation = true;
-    private boolean isExplodedLooseLuteceApp = false;
     private static Map<String,Boolean> compileMojoError = new HashMap<>();
 
     /**
@@ -910,9 +909,6 @@ public class DevMojo extends LooseAppSupport {
         
         @Override
         protected void updateLooseApp() throws PluginExecutionException {
-        	if(LooseLuteceApplication.isLuteceApplication(project.getPackaging( ))) {
-        		 updateLooseLuteceApp();
-        	}
             // Only perform operations if we are a war type application
             if (project.getPackaging().equals("war") )
             {
@@ -949,38 +945,6 @@ public class DevMojo extends LooseAppSupport {
                 }
             }
         }
-        private void updateLooseLuteceApp() throws PluginExecutionException {
-	        // Check if we are using an exploded loose app
-	        if (LooseLuteceApplication.isExploded(project)) {
-		           if (!isExplodedLooseLuteceApp) {
-			           // The project was previously running with a "non-exploded" loose app.
-			           // Update this flag and redeploy as an exploded loose app.
-			           isExplodedLooseLuteceApp = true;                      
-			           // Validate lutece-maven-plugin version
-		           Plugin warPlugin = getPlugin("fr.paris.lutece.tools", "lutece-maven-plugin");
-		           if (!validatePluginVersion(warPlugin.getVersion(), "5.0.0-SNAPSHOT")) {
-		                getLog().warn(
-		                         "Exploded Lutece functionality is enabled. Please use lutece-maven-plugin version 5.0.0 or greater for best results.");
-		           }             
-		           redeployApp();
-	           } else {
-	                  try {
-	                       runExplodedLuteceMojo("exploded-webapp");
-	                  } catch (MojoExecutionException e) {
-	                       getLog().error("Failed to run lutece:exploded goal", e);
-	                  }
-	           }
-	           } else {
-	                  if (isExplodedLooseLuteceApp) {
-	                  // Dev mode was previously running with an exploded loose lutece app. The app
-	                  // must have been updated to remove any exploded war capabilities 
-	                  // (filtering, etc). Update this flag and redeploy.
-	                    	isExplodedLooseLuteceApp = false;
-	                        redeployApp();
-	                    }
-	           }
-	          
-        }
         @Override
         protected void resourceDirectoryCreated() throws IOException {
             if (project.getPackaging().equals("war") 	
@@ -988,14 +952,6 @@ public class DevMojo extends LooseAppSupport {
                 try {
                     runMojo("org.apache.maven.plugins", "maven-resources-plugin", "resources");
                     runExplodedMojo();
-                } catch (MojoExecutionException e) {
-                    getLog().error("Failed to run goal(s)", e);
-                }
-            } else if (( LooseLuteceApplication.isLuteceApplication(project.getPackaging()))
-            		&& LooseLuteceApplication.isExploded(project)) {
-                try {
-                    runMojo("org.apache.maven.plugins", "maven-resources-plugin", "resources");
-                    runExplodedLuteceMojo("exploded-webapp");
                 } catch (MojoExecutionException e) {
                     getLog().error("Failed to run goal(s)", e);
                 }
@@ -1033,14 +989,6 @@ public class DevMojo extends LooseAppSupport {
             		&& LooseWarApplication.isExploded(project))) {
                 try {
                     runExplodedMojo();
-                } catch (MojoExecutionException e) {
-                    getLog().error("Failed to run goal(s)", e);
-                }
-            } 
-            else if (( LooseLuteceApplication.isLuteceApplication(project.getPackaging()))
-            		&& LooseLuteceApplication.isExploded(project)) {
-                try {
-                    runExplodedLuteceMojo("exploded-webapp");
                 } catch (MojoExecutionException e) {
                     getLog().error("Failed to run goal(s)", e);
                 }
@@ -1669,8 +1617,6 @@ public class DevMojo extends LooseAppSupport {
         }
         List<Path> webResourceDirs;
         if (LooseLuteceApplication.isLuteceApplication(project.getPackaging())) {
-        	// Check if we are using the exploded loose app functionality and save for checking later on. 
-            isExplodedLooseLuteceApp = LooseLuteceApplication.isExploded(project);
             webResourceDirs = LooseLuteceApplication.getWebSourceDirectoriesToMonitor(project);  
         }else {
             webResourceDirs = LooseWarApplication.getWebSourceDirectoriesToMonitor(project);
