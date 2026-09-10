@@ -1,5 +1,15 @@
 # Release du liberty-maven-plugin
 
+## Convention de version
+
+La version du fork suit celle de la derniere version amont integree
+(`OpenLiberty/ci.maven`, branche `3.x`). Version courante :
+`3.12.3-SNAPSHOT`, alignee sur le tag amont `liberty-maven-3.12.3`.
+
+Les tags du fork sont prefixes `liberty-maven-plugin-` (ex:
+`liberty-maven-plugin-3.12.3`), la ou l'amont utilise `liberty-maven-` : les
+deux jeux de tags coexistent donc sans collision dans le depot.
+
 ## Prerequis
 
 ### Credentials Nexus dans `~/.m2/settings.xml`
@@ -29,9 +39,13 @@ mvn -Dgpg.skip=true release:prepare
 
 Cette commande :
 - Modifie la version du pom.xml (retire `-SNAPSHOT`)
-- Cree un commit et un tag git (ex: `liberty-maven-plugin-3.12.1`)
-- Passe a la version SNAPSHOT suivante (ex: `3.12.2-SNAPSHOT`)
+- Cree un commit et un tag git (ex: `liberty-maven-plugin-3.12.3`)
+- Passe a la version SNAPSHOT suivante (ex: `3.12.4-SNAPSHOT`)
 - Cree un fichier `release.properties` (necessaire pour l'etape suivante)
+
+Le fichier `release.properties` est liste dans le `.gitignore` a la racine : il
+est normal qu'il n'apparaisse pas dans `git status`. Ne pas le supprimer entre
+les etapes 1 et 2, `release:perform` en a besoin.
 
 ## Etape 2 : Perform
 
@@ -58,6 +72,7 @@ Si le fichier `release.properties` a ete supprime apres le `release:prepare` (pa
 scm.url=scm\:git\:https\://github.com/lutece-platform/tools-liberty-maven-plugin.git
 scm.tag=liberty-maven-plugin-VERSION
 scm.commentPrefix=[maven-release-plugin]
+exec.additionalArguments=-Dgpg.skip\=true
 exec.pomFileName=pom.xml
 completedPhase=end-release
 projectVersionPolicyId=default
@@ -70,7 +85,7 @@ project.scm.fr.paris.lutece.tools\:liberty-maven-plugin.tag=HEAD
 project.scm.fr.paris.lutece.tools\:liberty-maven-plugin.url=https\://github.com/lutece-platform/tools-liberty-maven-plugin.git
 ```
 
-Remplacer `VERSION` par la version release (ex: `3.12.1`) et `NEXT_VERSION` par la version suivante (ex: `3.12.2`).
+Remplacer `VERSION` par la version release (ex: `3.12.3`) et `NEXT_VERSION` par la version suivante (ex: `3.12.4`).
 
 ### 401 Unauthorized
 

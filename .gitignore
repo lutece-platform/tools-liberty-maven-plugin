@@ -9,3 +9,7 @@ target/
 *.versionsBackup
 /.metadata/
 *.jar
+
+# Residu du maven-release-plugin : recree par release:prepare,
+# consomme par release:perform (voir liberty-maven-plugin/RELEASE.md)
+release.properties
