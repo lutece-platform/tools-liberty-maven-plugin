@@ -90,16 +90,17 @@ public class LooseLuteceApplication extends LooseApplication {
      * Retrieves the source directory path for the Lutece application.
      *
      * @param project the Maven project
-     * @return the source directory path for the WAR file
+     * @return the source directory path for the webapp sources
      */
     private static Path getLuteceSourceDirectory(MavenProject project) {
         Path baseDir = Paths.get(project.getBasedir().getAbsolutePath());
-        String warSourceDir = MavenProjectUtil.getPluginConfiguration(project, "org.apache.maven.plugins", "maven-lutece-plugin", "warSourceDirectory");
-        if (warSourceDir == null) {
-            warSourceDir = "webapp";
-        }  
+        String webappSourceDir = MavenProjectUtil.getPluginConfiguration(project, "fr.paris.lutece.tools", "lutece-maven-plugin", "webappSourceDirectory");
+        if (webappSourceDir == null) {
+            // Not configured in the POM: match the lutece-maven-plugin default, ${basedir}/webapp
+            webappSourceDir = "webapp";
+        }
         // Use java.nio Paths to fix issue with absolute paths on Windows
-        return baseDir.resolve(warSourceDir);
+        return baseDir.resolve(webappSourceDir);
     }
     
     /**
