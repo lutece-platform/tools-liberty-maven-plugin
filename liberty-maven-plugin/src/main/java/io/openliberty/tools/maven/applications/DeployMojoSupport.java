@@ -495,8 +495,7 @@ public abstract class DeployMojoSupport extends LooseAppSupport {
             if (isReactorMavenProject(artifact)) {
                 MavenProject dependProject = getReactorMavenProject(artifact);
                 String artifactFileName = getPreDeployAppFileName(dependProject);
-                
-                
+
                 //Check if reactor project generates an ejb, bundle or jar 
                 String archivePlugin = "maven-jar-plugin";
                 String packaging = dependProject.getPackaging();

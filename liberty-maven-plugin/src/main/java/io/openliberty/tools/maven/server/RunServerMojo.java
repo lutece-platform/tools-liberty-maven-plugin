@@ -103,51 +103,48 @@ public class RunServerMojo extends PluginConfigSupport {
             getLog().debug("Skipping compile/resources on module with pom packaging type");
         } else if (projectPackaging.equals("lutece-site")) {
             getLog().debug("Skipping compile/resources on module with lutece-site packaging type");
-        }  
-        else {
+        } else {
             runMojo("org.apache.maven.plugins", "maven-resources-plugin", "resources");
             runMojo("org.apache.maven.plugins", "maven-compiler-plugin", "compile");
             updateArtifactPathToOutputDirectory(project);
         }
 
         if (!looseApplication) {
-        	
-         // no need to repackage war/jar if deploy package is specified as spring-boot-project
-         if ("spring-boot-project".equals(getDeployPackages())) {
-              getLog().info("Skipping project repackaging as deploy package is configured as spring-boot-project");
-         }else {
-            try {
-                switch (projectPackaging) {
-                    case "war":
-                        runMojo("org.apache.maven.plugins", "maven-war-plugin", "war");
-                        break;
-                    case "ear":
-                        runMojo("org.apache.maven.plugins", "maven-ear-plugin", "ear");
-                        break;
-                    case "ejb":
-                        runMojo("org.apache.maven.plugins", "maven-ejb-plugin", "ejb");
-                        break;
-                    case "bundle":
-                        runMojo("org.apache.felix", "maven-bundle-plugin", "bundle");
-                        break;
-                    case "jar":
-                        runMojo("org.apache.maven.plugins", "maven-jar-plugin", "jar");
-                        break;
-                    case "lutece-core":
-                    case "lutece-plugin":
-                    case "lutece-site":
-                    	 runMojo(LooseLuteceApplication.LUTECE_PLUGIN_GROUP_ID, LooseLuteceApplication.LUTECE_PLUGIN_ARTIFACT_ID, "war");
-                         break;
+            // no need to repackage war/jar if deploy package is specified as spring-boot-project
+            if ("spring-boot-project".equals(getDeployPackages())) {
+                getLog().info("Skipping project repackaging as deploy package is configured as spring-boot-project");
+            } else {
+                try {
+                    switch (projectPackaging) {
+                        case "war":
+                            runMojo("org.apache.maven.plugins", "maven-war-plugin", "war");
+                            break;
+                        case "ear":
+                            runMojo("org.apache.maven.plugins", "maven-ear-plugin", "ear");
+                            break;
+                        case "ejb":
+                            runMojo("org.apache.maven.plugins", "maven-ejb-plugin", "ejb");
+                            break;
+                        case "bundle":
+                            runMojo("org.apache.felix", "maven-bundle-plugin", "bundle");
+                            break;
+                        case "jar":
+                            runMojo("org.apache.maven.plugins", "maven-jar-plugin", "jar");
+                            break;
+                        case "lutece-core":
+                        case "lutece-plugin":
+                        case "lutece-site":
+                            runMojo(LooseLuteceApplication.LUTECE_PLUGIN_GROUP_ID, LooseLuteceApplication.LUTECE_PLUGIN_ARTIFACT_ID, "war");
+                            break;
+                    }
 
-                    	
+                } catch (MojoExecutionException e) {
+                    if (graph != null && !graph.getUpstreamProjects(project, true).isEmpty()) {
+                        // this module is a non-loose app, so warn that any upstream modules must also be set to non-loose
+                        getLog().warn("The looseApplication parameter was set to false for the module with artifactId " + project.getArtifactId() + ". Ensure that all modules use the same value for the looseApplication parameter by including -DlooseApplication=false in the Maven command for your multi module project.");
+                        throw e;
+                    }
                 }
-            } catch (MojoExecutionException e) {
-                if (graph != null && !graph.getUpstreamProjects(project, true).isEmpty()) {
-                    // this module is a non-loose app, so warn that any upstream modules must also be set to non-loose
-                    getLog().warn("The looseApplication parameter was set to false for the module with artifactId " + project.getArtifactId() + ". Ensure that all modules use the same value for the looseApplication parameter by including -DlooseApplication=false in the Maven command for your multi module project.");
-                    throw e;
-                }
-              }
             }
         }
         // Return if Liberty should not be run on this module
@@ -170,4 +167,5 @@ public class RunServerMojo extends PluginConfigSupport {
         serverTask.setOperation("run");       
         serverTask.execute();
     }
+
 }

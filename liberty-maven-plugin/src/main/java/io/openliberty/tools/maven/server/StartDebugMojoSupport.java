@@ -94,7 +94,7 @@ public abstract class StartDebugMojoSupport extends ServerFeatureSupport {
 
     @Component
     protected BuildPluginManager pluginManager;
-    
+
     /* 
      * Define a set of dependencies to copy to the target Liberty server.
      */

@@ -1603,7 +1603,7 @@ public class DevMojo extends LooseAppSupport {
             runLibertyMojoDeploy();
         }
         
-        if (project.getPackaging().equals("war") ) {
+        if (project.getPackaging().equals("war")) {
             // Check if we are using the exploded loose app functionality and save for checking later on. 
             isExplodedLooseWarApp = LooseWarApplication.isExploded(project);
         
