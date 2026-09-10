@@ -165,9 +165,9 @@ public abstract class StartDebugMojoSupport extends ServerFeatureSupport {
      */
     protected void runExplodedLuteceMojo(String goal) throws MojoExecutionException {
             	
-    	Plugin warPlugin = getPlugin("fr.paris.lutece.tools", "lutece-maven-plugin");
+    	Plugin warPlugin = getPlugin(LooseLuteceApplication.LUTECE_PLUGIN_GROUP_ID, LooseLuteceApplication.LUTECE_PLUGIN_ARTIFACT_ID);
     	Xpp3Dom explodedConfig = ExecuteMojoUtil.getPluginGoalConfig(warPlugin, goal, getLog());
-        getLog().info("Running lutece-maven-plugin:" + goal);
+        getLog().info("Running " + LooseLuteceApplication.LUTECE_PLUGIN_ARTIFACT_ID + ":" + goal);
         getLog().debug("configuration:\n" + explodedConfig);
         session.getRequest().setStartTime(new Date());
         executeMojo(warPlugin, goal(goal), explodedConfig, executionEnvironment(project, session, pluginManager));

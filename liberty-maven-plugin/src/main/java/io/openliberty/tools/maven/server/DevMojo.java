@@ -1023,14 +1023,14 @@ public class DevMojo extends LooseAppSupport {
             // set the updated project in current session;
             Plugin backupLibertyPlugin = getLibertyPlugin();
             Plugin backupWarPlugin = getPluginForProject("org.apache.maven.plugins", "maven-war-plugin", project);
-            Plugin backupLutecePlugin = getPluginForProject("fr.paris.lutece.tools", "lutece-maven-plugin", project);
+            Plugin backupLutecePlugin = getPluginForProject(LooseLuteceApplication.LUTECE_PLUGIN_GROUP_ID, LooseLuteceApplication.LUTECE_PLUGIN_ARTIFACT_ID, project);
 
             MavenProject backupProject = project;
             project = build.getProject();
             session.setCurrentProject(project);
             Plugin libertyPlugin = getLibertyPlugin();
             Plugin warPlugin = getPluginForProject("org.apache.maven.plugins", "maven-war-plugin", project);
-            Plugin lutecePlugin = getPluginForProject("fr.paris.lutece.tools", "lutece-maven-plugin", project);
+            Plugin lutecePlugin = getPluginForProject(LooseLuteceApplication.LUTECE_PLUGIN_GROUP_ID, LooseLuteceApplication.LUTECE_PLUGIN_ARTIFACT_ID, project);
 
             try {
                 // TODO rebuild the corresponding module if the compiler options have changed

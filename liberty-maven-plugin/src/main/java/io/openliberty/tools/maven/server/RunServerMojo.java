@@ -26,6 +26,7 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
 
 import io.openliberty.tools.ant.ServerTask;
+import io.openliberty.tools.maven.applications.LooseLuteceApplication;
 
 /**
  * Start a liberty server
@@ -135,7 +136,7 @@ public class RunServerMojo extends PluginConfigSupport {
                     case "lutece-core":
                     case "lutece-plugin":
                     case "lutece-site":
-                    	 runMojo("fr.paris.lutece.tools", "lutece-maven-plugin", "war");
+                    	 runMojo(LooseLuteceApplication.LUTECE_PLUGIN_GROUP_ID, LooseLuteceApplication.LUTECE_PLUGIN_ARTIFACT_ID, "war");
                          break;
 
                     	

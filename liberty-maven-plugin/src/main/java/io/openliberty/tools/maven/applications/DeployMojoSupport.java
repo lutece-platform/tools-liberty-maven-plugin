@@ -245,7 +245,7 @@ public abstract class DeployMojoSupport extends LooseAppSupport {
                     MessageFormat.format(messages.getString("error.project.not.compile"), proj.getId()));
         }
         // Validate lutece-maven-plugin version
-    	Plugin lutecePlugin = getPlugin("fr.paris.lutece.tools", "lutece-maven-plugin");
+    	Plugin lutecePlugin = getPlugin(LooseLuteceApplication.LUTECE_PLUGIN_GROUP_ID, LooseLuteceApplication.LUTECE_PLUGIN_ARTIFACT_ID);
         if (!validatePluginVersion(lutecePlugin.getVersion(), "5.0.0-SNAPSHOT")) {
             throw new MojoExecutionException(
             		"The lutece-maven-plugin does not support the dev mode. Please use lutece-maven-plugin version 5.0.0 or greater. Project: "+ proj.getArtifactId( ));
@@ -285,7 +285,7 @@ public abstract class DeployMojoSupport extends LooseAppSupport {
         // 5. finally the exploded dir, as the fallback for everything coming from the core, the plugins and the sites
         looseLutece.addOutputDir(looseLutece.getDocumentRoot(), looseLutece.getWebAppDirectory(), "/");
         // add Manifest file
-        File manifestFile = MavenProjectUtil.getManifestFile(proj, "lutece-maven-plugin");
+        File manifestFile = MavenProjectUtil.getManifestFile(proj, LooseLuteceApplication.LUTECE_PLUGIN_ARTIFACT_ID);
         try {
         	looseLutece.addManifestFile(manifestFile);
         } catch (Exception e) {
@@ -506,7 +506,7 @@ public abstract class DeployMojoSupport extends LooseAppSupport {
                 } else if (packaging.equalsIgnoreCase("bundle")) {
                     archivePlugin = "maven-bundle-plugin";
                 }else if (LooseLuteceApplication.isLuteceApplication(packaging)) {
-                    archivePlugin = "lutece-maven-plugin";
+                    archivePlugin = LooseLuteceApplication.LUTECE_PLUGIN_ARTIFACT_ID;
                     artifactFileName = dependProject.getBuild().getFinalName()+".jar";
                     looseApp.addOutputDir(parent, LooseLuteceApplication.getLuteceSourceDirectory(dependProject).toFile(), "/");
                 }

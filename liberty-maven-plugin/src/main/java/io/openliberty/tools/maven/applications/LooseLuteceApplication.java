@@ -35,6 +35,11 @@ import io.openliberty.tools.common.plugins.config.LooseConfigData;
  * for handling project-specific configurations in Lutece.
  */
 public class LooseLuteceApplication extends LooseApplication {
+    /** The groupId of the Lutece Maven plugin. */
+    public static final String LUTECE_PLUGIN_GROUP_ID = "fr.paris.lutece.tools";
+    /** The artifactId of the Lutece Maven plugin. */
+    public static final String LUTECE_PLUGIN_ARTIFACT_ID = "lutece-maven-plugin";
+
     /** The Maven project instance associated with this application. */
 	protected final MavenProject project;
     /** The source directory for the WAR file within the Lutece application. */
@@ -72,7 +77,7 @@ public class LooseLuteceApplication extends LooseApplication {
      */
     public static Path getLuteceSourceDirectory(MavenProject project) {
         Path baseDir = Paths.get(project.getBasedir().getAbsolutePath());
-        String webappSourceDir = MavenProjectUtil.getPluginConfiguration(project, "fr.paris.lutece.tools", "lutece-maven-plugin", "webappSourceDirectory");
+        String webappSourceDir = MavenProjectUtil.getPluginConfiguration(project, LUTECE_PLUGIN_GROUP_ID, LUTECE_PLUGIN_ARTIFACT_ID, "webappSourceDirectory");
         if (webappSourceDir == null) {
             // Not configured in the POM: match the lutece-maven-plugin default, ${basedir}/webapp
             webappSourceDir = "webapp";
@@ -90,7 +95,7 @@ public class LooseLuteceApplication extends LooseApplication {
     private Path getWebAppDirectory(MavenProject project) {
     	Xpp3Dom dom= null;
     	if(isLuteceApplication(project.getPackaging())) {
-    		dom = project.getGoalConfiguration("fr.paris.lutece.tools", "lutece-maven-plugin", null, null);
+    		dom = project.getGoalConfiguration(LUTECE_PLUGIN_GROUP_ID, LUTECE_PLUGIN_ARTIFACT_ID, null, null);
     	}
     	String webAppDirStr = null;
         if (dom != null) {
@@ -151,7 +156,7 @@ public class LooseLuteceApplication extends LooseApplication {
     public void addDefaultConfigurationDirPaths() throws DOMException, IOException  {
 
         Path baseDirPath = Paths.get(project.getBasedir().getAbsolutePath());
-        Xpp3Dom dom = project.getGoalConfiguration("fr.paris.lutece.tools", "lutece-maven-plugin", null, null);        
+        Xpp3Dom dom = project.getGoalConfiguration(LUTECE_PLUGIN_GROUP_ID, LUTECE_PLUGIN_ARTIFACT_ID, null, null);        
     	if (dom != null) {
     		Xpp3Dom localDir = dom.getChild("localConfDirectory");
             if ( localDir != null ) {

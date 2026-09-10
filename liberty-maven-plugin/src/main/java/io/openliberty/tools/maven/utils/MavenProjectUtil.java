@@ -73,7 +73,7 @@ public class MavenProjectUtil {
         } else if (proj.getPackaging().equals("bundle")) {
             pluginName = "maven-bundle-plugin";
         } else if (LooseLuteceApplication.isLuteceApplication(proj.getPackaging( ))) {
-            pluginName = "lutece-maven-plugin";
+            pluginName = LooseLuteceApplication.LUTECE_PLUGIN_ARTIFACT_ID;
         } 
         else {
             return null;
