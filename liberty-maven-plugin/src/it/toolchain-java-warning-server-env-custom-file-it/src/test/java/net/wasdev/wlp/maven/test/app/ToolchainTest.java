@@ -3,21 +3,12 @@ package net.wasdev.wlp.maven.test.app;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileInputStream;
-
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.xpath.XPath;
-import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathFactory;
 
 import java.util.Scanner;
 
 import org.junit.Test;
 
 import org.junit.Assert;
-import org.w3c.dom.Document;
-import org.w3c.dom.NodeList;
 
 /**
  * 
@@ -55,6 +46,23 @@ public class ToolchainTest {
         Assert.assertTrue("Did not find project properties contain java.home message for create goal in build.log", logContainsMessage(buildLog, String.format(TOOLCHAIN_NOT_HONORED_WARNING, "create")));
         Assert.assertTrue("Did not find project properties contain java.home message for start goal in build.log", logContainsMessage(buildLog, String.format(TOOLCHAIN_NOT_HONORED_WARNING, "start")));
         Assert.assertTrue("Did not find project properties contain java.home message for status goal in build.log", logContainsMessage(buildLog, String.format(TOOLCHAIN_NOT_HONORED_WARNING, "status")));
+    }
+
+    @Test
+    public void verifyLogMessageForExpansionVariables() throws Exception {
+        File buildLog = new File("../build.log");
+        Assert.assertTrue(buildLog.exists());
+        String os = System.getProperty("os.name");
+        if (os != null && os.toLowerCase().startsWith("windows")) {
+            Assert.assertTrue("Did not find variable expansion message in build.log", logContainsMessage(buildLog, "Resolved environment variable \"EXP_VAR\" in path \"!EXP_VAR!_!EXP_VAR3!\" to \"TEST\""));
+            Assert.assertTrue("Did not find second variable expansion message in build.log", logContainsMessage(buildLog, "Resolved environment variable \"EXP_VAR3\" in path \"!EXP_VAR!_!EXP_VAR3!\" to \"WINDOWS\""));
+            Assert.assertTrue("Did not find complete resolved value log message in build.log", logContainsMessage(buildLog, "Resolved path \"!EXP_VAR!_!EXP_VAR3!\" to \"TEST_WINDOWS\""));
+        } else {
+            Assert.assertTrue("Did not find variable expansion message in build.log", logContainsMessage(buildLog, "Resolved environment variable \"EXP_VAR\" in path \"${EXP_VAR}_${EXP_VAR2}\" to \"TEST\""));
+            Assert.assertTrue("Did not find second variable expansion message in build.log", logContainsMessage(buildLog, "Resolved environment variable \"EXP_VAR2\" in path \"${EXP_VAR}_${EXP_VAR2}\" to \"UNIX\""));
+            Assert.assertTrue("Did not find complete resolved value log message in build.log", logContainsMessage(buildLog, "Resolved path \"${EXP_VAR}_${EXP_VAR2}\" to \"TEST_UNIX\""));
+        }
+
     }
 
     private boolean logContainsMessage( File logFile, String message) throws FileNotFoundException {

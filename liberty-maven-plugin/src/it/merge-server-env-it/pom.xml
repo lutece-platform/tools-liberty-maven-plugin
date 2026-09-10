@@ -71,6 +71,7 @@
           <deployPackages>project</deployPackages>
           <looseApplication>false</looseApplication>
           <mergeServerEnv>true</mergeServerEnv>
+          <convertServerEnvPathSeparator>true</convertServerEnvPathSeparator>
           <serverEnvFile>src/test/resources/server.env</serverEnvFile>
           <configDirectory>src/test/resources/configDir</configDirectory>
         </configuration>

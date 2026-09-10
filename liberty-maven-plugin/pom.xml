@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.openliberty.tools</groupId>
         <artifactId>liberty-maven</artifactId>
-        <version>3.12.0</version>
+        <version>3.12.3</version>
     </parent>
 
     <groupId>fr.paris.lutece.tools</groupId>
@@ -77,6 +77,22 @@
             <artifactId>maven-core</artifactId>
             <version>${maven.version}</version>
             <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.codehaus.plexus</groupId>
+                    <artifactId>plexus-utils</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.codehaus.plexus</groupId>
+            <artifactId>plexus-utils</artifactId>
+            <version>4.0.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.codehaus.plexus</groupId>
+            <artifactId>plexus-xml</artifactId>
+            <version>4.0.3</version>
         </dependency>
         <dependency>
             <groupId>org.apache.maven</groupId>
@@ -104,18 +120,13 @@
         </dependency>
         <dependency>
             <groupId>org.codehaus.plexus</groupId>
-            <artifactId>plexus-utils</artifactId>
-            <version>3.5.1</version>
-        </dependency>
-        <dependency>
-            <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-build-api</artifactId>
             <version>1.2.0</version>
         </dependency>
         <dependency>
             <groupId>io.openliberty.tools</groupId>
             <artifactId>ci.common</artifactId>
-            <version>1.8.40</version>
+            <version>1.8.43</version>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
@@ -257,6 +268,7 @@
                                 <pomExcludes>
                                     <pomExclude>binary-scanner-it/pom.xml</pomExclude>
                                     <pomExclude>springboot-3-tests/pom.xml</pomExclude>
+                                    <pomExclude>springboot-4-tests/pom.xml</pomExclude>
                                     <pomExclude>toolchain-java-warning-jvmoption-custom-file-it/pom.xml</pomExclude>
                                     <pomExclude>toolchain-java-warning-jvmoption-file-it/pom.xml</pomExclude>
                                     <pomExclude>toolchain-java-warning-jvmoption-property-it/pom.xml</pomExclude>
@@ -303,6 +315,7 @@
                                     <pomExclude>install-features-it/pom.xml</pomExclude>
                                     <pomExclude>binary-scanner-it/pom.xml</pomExclude>
                                     <pomExclude>springboot-3-tests/pom.xml</pomExclude>
+                                    <pomExclude>springboot-4-tests/pom.xml</pomExclude>
                                     <pomExclude>toolchain-java-warning-jvmoption-custom-file-it/pom.xml</pomExclude>
                                     <pomExclude>toolchain-java-warning-jvmoption-file-it/pom.xml</pomExclude>
                                     <pomExclude>toolchain-java-warning-jvmoption-property-it/pom.xml</pomExclude>
@@ -350,6 +363,7 @@
                                     <pomExclude>generate-features-it/pom.xml</pomExclude>
                                     <pomExclude>binary-scanner-it/pom.xml</pomExclude>
                                     <pomExclude>springboot-3-tests/pom.xml</pomExclude>
+                                    <pomExclude>springboot-4-tests/pom.xml</pomExclude>
                                     <pomExclude>toolchain-java-warning-jvmoption-custom-file-it/pom.xml</pomExclude>
                                     <pomExclude>toolchain-java-warning-jvmoption-file-it/pom.xml</pomExclude>
                                     <pomExclude>toolchain-java-warning-jvmoption-property-it/pom.xml</pomExclude>
@@ -401,6 +415,7 @@
                                     <pomExclude>generate-features-it/pom.xml</pomExclude>
                                     <pomExclude>binary-scanner-it/pom.xml</pomExclude>
                                     <pomExclude>springboot-3-tests/pom.xml</pomExclude>
+                                    <pomExclude>springboot-4-tests/pom.xml</pomExclude>
                                     <pomExclude>toolchain-java-warning-jvmoption-custom-file-it/pom.xml</pomExclude>
                                     <pomExclude>toolchain-java-warning-jvmoption-file-it/pom.xml</pomExclude>
                                     <pomExclude>toolchain-java-warning-jvmoption-property-it/pom.xml</pomExclude>

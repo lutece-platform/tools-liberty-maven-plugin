@@ -13,6 +13,7 @@ Additional parameters shared by all server-based goals.
 | jvmOptionsFile | Location of a JVM options file to be used by the instance.| No |
 | serverEnvFile | Location of a server environment file to be used by the instance.| No |
 | mergeServerEnv | Merge the server environment properties from all specified sources with the default generated `server.env` file in the target server. Conflicts are resolved with the same precedence as the replacement policy when this attribute is set to `false`. The `liberty.env.{var}` Maven properties are highest precedence, followed by the `serverEnvFile` attribute, then the `server.env` file located in the `configDirectory`, and finally the default generated `server.env` file in the target server. The default value is `false`. | No |
+| convertServerEnvPathSeparator | When set to `true`, backslash characters (`\`) in `server.env` values are converted to forward slashes (`/`) before being written to the merged `server.env` file. This was the default behaviour in earlier versions of the plugin. The default value is `false`, which preserves values verbatim — recommended for Windows paths (e.g. `C:\my\path`) and delayed-expansion variables (e.g. `!MY_VAR!\java`). Only takes effect when `mergeServerEnv` is `true`. | No |
 
 #### Backward Compatibility
 
@@ -139,7 +140,7 @@ Starting with the 3.1 release of the liberty-maven-plugin, support is added to s
 
 If Liberty configuration is specified with Maven properties, the above indicated files are created in the target Liberty server. By default there is no merging behavior for the Maven properties with files located in the `configDirectory` or the specific configuration file parameters such as `bootstrapPropertiesFile`, `jvmOptionsFile` and `serverEnvFile`. However, the `liberty.env.{var}` Maven properties can be merged with other configured `server.env` files by setting the `mergeServerEnv` parameter to `true`.   
 
-As a special case when `mergeServerEnv` is `false`,  an existing `keystore_password` property in the default generated `server.env` file in the target server will be merged in if there is no `serverEnvFile` configured nor `server.env` file located in the `configDirectory`, and the `keystore_password` env var is not defined as a Maven property.
+As a special case when `mergeServerEnv` is `false`,  existing `keystore_password` and `ltpa_keys_password` properties in the default generated `server.env` file in the target server will be merged in if there is no `serverEnvFile` configured nor `server.env` file located in the `configDirectory`, and these env vars are not defined as Maven properties.
 
 Note that properties specified with `-D` on the command line are also analyzed for the property name formats listed above and take precedence over Maven properties specified in the pom.xml.
 
