@@ -70,7 +70,7 @@ public class LooseLuteceApplication extends LooseApplication {
      * @param project the Maven project
      * @return the source directory path for the webapp sources
      */
-    private static Path getLuteceSourceDirectory(MavenProject project) {
+    public static Path getLuteceSourceDirectory(MavenProject project) {
         Path baseDir = Paths.get(project.getBasedir().getAbsolutePath());
         String webappSourceDir = MavenProjectUtil.getPluginConfiguration(project, "fr.paris.lutece.tools", "lutece-maven-plugin", "webappSourceDirectory");
         if (webappSourceDir == null) {
@@ -139,7 +139,7 @@ public class LooseLuteceApplication extends LooseApplication {
      * @return true if it is a Lutece application, false otherwise
      */
     public static boolean isLuteceApplication( String packaging) {
-    	return packaging.equals("lutece-core") || packaging.equals("lutece-plugin") || packaging.equals("lutece-site");
+    	return "lutece-core".equals(packaging) || "lutece-plugin".equals(packaging) || "lutece-site".equals(packaging);
     }
     
     /**
@@ -157,7 +157,7 @@ public class LooseLuteceApplication extends LooseApplication {
             if ( localDir != null ) {
                     Path resolvedlocalDir = baseDirPath.resolve(localDir.getValue());
                     if(!resolvedlocalDir.toFile().exists()) {
-                	    log.warn("Default local configuration directory " + localDir.getValue() + "does not exist");
+                	    log.warn("Default local configuration directory " + localDir.getValue() + " does not exist");
                     }
                     else {
                     	addOutputDir(getDocumentRoot(), resolvedlocalDir.toFile(), "/WEB-INF/conf");
@@ -167,7 +167,7 @@ public class LooseLuteceApplication extends LooseApplication {
             if ( defaultDir != null ) {
                 Path resolvedDir = baseDirPath.resolve(defaultDir.getValue());
                 if(!resolvedDir.toFile().exists()) {
-            	    log.warn("Default configuration directory " + defaultDir.getValue() + "does not exist");
+            	    log.warn("Default configuration directory " + defaultDir.getValue() + " does not exist");
                 }
                 else {
                 	addOutputDir(getDocumentRoot(), resolvedDir.toFile(), "/WEB-INF/conf/");

@@ -244,11 +244,11 @@ public abstract class DeployMojoSupport extends LooseAppSupport {
             throw new MojoExecutionException(
                     MessageFormat.format(messages.getString("error.project.not.compile"), proj.getId()));
         }
-        // Validate maven-lutece-plugin version
+        // Validate lutece-maven-plugin version
     	Plugin lutecePlugin = getPlugin("fr.paris.lutece.tools", "lutece-maven-plugin");
         if (!validatePluginVersion(lutecePlugin.getVersion(), "5.0.0-SNAPSHOT")) {
             throw new MojoExecutionException(
-            		"The lutece-maven-plugin does not support the dev mode. Please use maven-lutece-plugin version 5.0.0 or greater. Project: "+ proj.getArtifactId( ));
+            		"The lutece-maven-plugin does not support the dev mode. Please use lutece-maven-plugin version 5.0.0 or greater. Project: "+ proj.getArtifactId( ));
       
         }
         if (container) {
@@ -508,7 +508,7 @@ public abstract class DeployMojoSupport extends LooseAppSupport {
                 }else if (LooseLuteceApplication.isLuteceApplication(packaging)) {
                     archivePlugin = "lutece-maven-plugin";
                     artifactFileName = dependProject.getBuild().getFinalName()+".jar";
-                    looseApp.addOutputDir(parent, new File(dependProject.getBasedir(), "webapp"), "/");
+                    looseApp.addOutputDir(parent, LooseLuteceApplication.getLuteceSourceDirectory(dependProject).toFile(), "/");
                 }
                 Element archive = looseApp.addArchive(parent, dir + artifactFileName);
                 looseApp.addOutputDir(archive, new File(dependProject.getBuild().getOutputDirectory()), "/");
