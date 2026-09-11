@@ -62,6 +62,13 @@
         <maven.version>3.8.6</maven.version>
         <maven.plugin.tools.version>3.9.0</maven.plugin.tools.version>
         <maven.javadoc.failOnError>false</maven.javadoc.failOnError>
+
+        <!-- Lutece only publishes its own fork of the plugin. The two parent poms keep the
+             upstream io.openliberty.tools coordinates and their released 3.12.3 version, which
+             is already on the Lutece Nexus : deploying them again is refused, and the whole
+             reactor fails before reaching the plugin. liberty-maven-plugin turns this back on
+             for itself. -->
+        <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
 
     <modules>

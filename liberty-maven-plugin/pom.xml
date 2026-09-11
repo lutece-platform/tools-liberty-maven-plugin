@@ -21,6 +21,11 @@
         <maven>${maven.version}</maven>
     </prerequisites>
 
+    <properties>
+        <!-- The parent skips deployment; this is the one artifact Lutece publishes. -->
+        <maven.deploy.skip>false</maven.deploy.skip>
+    </properties>
+
     <repositories>
         <!-- Configure Sonatype OSS Maven snapshots repository when using snapshots -->
         <repository>
